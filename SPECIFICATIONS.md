@@ -103,7 +103,8 @@ round = {
   active: false,
   hole: 1,                   // 1 to 18
   strokes: 0,                // the score so far, as a scorecard counts it
-  log: []                    // { hole, clubId, strokes } appended on each return
+  log: [],                   // { hole, clubId, strokes } appended on each return
+  toPin: null                // yards to the pin, or null if unknown. Phone only
 }
 
 bag = {
@@ -399,6 +400,16 @@ live.
      are 5 4 4 4 4 5 4 3 5, which is 38; the round has 30 club uses. The
      phone's Summary tab, its chart, the Round tab and the test bar all read
      the same `round.strokes` and `round.log`.
+   - **Distance.** The bag's header prints the hole's par and yardage from
+     the course card, for example "HOLE 04  PAR 3  195 YDS": static data,
+     not shot tracking. The phone's Round tab has a TO PIN line that updates
+     after each shot, in yards from the fairway and feet near the green. It
+     is on the phone because the phone travels with the golfer; the bag sits
+     on the cart path and cannot know where the ball is. Each script step
+     declares where it leaves the golfer, and each caption gives the distance
+     hit and the distance left, for example "Hole 1, 485 yds, par 5 -
+     Driver, 261. 224 to the pin." A manual return on the test panel has no
+     position, so TO PIN then reads "--" until the next tee.
    - A stroke on a club that was left behind is counted when the club comes
      back, so the running total is one behind between the 3rd green and the
      5th tee, and between the 7th green and the 8th green. It is credited to

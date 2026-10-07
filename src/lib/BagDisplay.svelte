@@ -24,7 +24,8 @@
     alertsOn,
     inBagCount,
     clubsOut,
-    leftBehind
+    leftBehind,
+    holeCard
   } = $props();
 
   // Two digits always, so the header does not shift between hole 9 and 10.
@@ -77,7 +78,17 @@
 <div class="bezel">
   <div class="screen">
     <div class="status">
-      <span>Hole {holeText}</span>
+      <!-- Par and yardage are the course card for this hole: fixed data the
+           bag can simply print. It is NOT shot tracking. The bag sits on the
+           cart path and cannot know where the ball is; the distance left to
+           the pin is on the phone, which travels with the golfer. -->
+      <span class="hole">
+        <span>Hole {holeText}</span>
+        {#if holeCard}
+          <span>Par {holeCard.par}</span>
+          <span>{holeCard.yards} yds</span>
+        {/if}
+      </span>
       <span>{round.active ? "Round active" : "Idle"}</span>
     </div>
 
@@ -126,6 +137,11 @@
     line-height: 16px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+  }
+
+  .hole {
+    display: flex;
+    gap: var(--space-4);
   }
 
   .count {

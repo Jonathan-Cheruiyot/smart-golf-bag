@@ -5,6 +5,11 @@
   // the bag has no room for: exactly which clubs are out, the hole each one
   // was pulled on, and the running stroke count.
   //
+  // TO PIN, the yards left to the hole, is here and deliberately not on the
+  // bag. The phone travels with the golfer, so it can know where he is
+  // standing. The bag is sitting back on the cart path and cannot know where
+  // the ball is. The bag shows only the hole's printed yardage.
+  //
   // It also repeats the bag's three controls. The golfer may be at the bag
   // or may have walked ahead with only the phone, and either device should
   // be able to start the round, move to the next hole, or silence alerts.
@@ -44,6 +49,15 @@
     reducedMotion.current ? 0 : (settle.current - inBagCount) * 8
   );
 
+  // Yards from the fairway, feet near the green, as golfers say it. Unknown
+  // (no position for this shot) reads as two dashes, never as a guess.
+  let toPin = $derived.by(() => {
+    if (round.toPin === null) return "--";
+    if (round.toPin === 0) return "In the hole";
+    if (round.toPin < 20) return `${Math.round(round.toPin * 3)} ft`;
+    return `${Math.round(round.toPin)} yds`;
+  });
+
   // Same precedence as the bag's message line, worded for the phone.
   let status = $derived.by(() => {
     if (alertsOn && leftBehind.length > 0) {
@@ -65,10 +79,16 @@
     <span>{round.active ? "Round active" : "Idle"}</span>
   </div>
 
-  <p class="count">
-    <span class="number" style="transform: translateY({offset}px)">{inBagCount}</span>
-    <span class="of">/ {loadedCount} in bag</span>
-  </p>
+  <div class="headline">
+    <p class="count">
+      <span class="number" style="transform: translateY({offset}px)">{inBagCount}</span>
+      <span class="of">/ {loadedCount} in bag</span>
+    </p>
+    <p class="to-pin">
+      <span class="to-pin-label">To pin</span>
+      <span class="to-pin-value">{toPin}</span>
+    </p>
+  </div>
 
   <!-- The square marker fills when something is wrong, so the state is a
        shape as well as a colour. -->
@@ -152,6 +172,36 @@
   .of {
     font-size: 14px;
     color: var(--phone-soft);
+  }
+
+  /* The count on the left, the distance on the right, on one line so the
+     tab gets no taller. */
+  .headline {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .to-pin {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin: 0 0 var(--space-1);
+    font-family: var(--font-mono);
+  }
+
+  .to-pin-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--phone-soft);
+  }
+
+  .to-pin-value {
+    font-size: 16px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 24px;
   }
 
   .status {

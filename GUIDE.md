@@ -134,7 +134,7 @@ inside one component. Everything here is consistent Svelte 5.
 redraws.
 
 ```js
-let round = $state({ active: false, hole: 1, strokes: 0, log: [] });
+let round = $state({ active: false, hole: 1, strokes: 0, log: [], toPin: null });
 ```
 
 **`$props`** receives values from a parent component.
@@ -341,28 +341,34 @@ putter. The bag senses a club coming back, not a swing, so each step of the
 script declares how many strokes it represents. The phone shows strokes as
 the headline and "Club uses" as a separate stat.
 
+**Distance is split between the devices on purpose.** The bag's header
+prints the hole's par and yardage, which is fixed course data. The yards
+left TO PIN are on the phone only, because the phone travels with the golfer
+and the bag is back on the cart path and cannot know where the ball is.
+
 The script is a list of steps in `App.svelte`. Each step calls the same
 functions the buttons call. A shot is two steps with the same caption, club
 out and then club back:
 
 ```js
-const shot = (id, caption, strokes = 1) => [
+// id, yards left to the pin afterwards, caption, strokes
+const shot = (id, toPin, caption, strokes = 1) => [
   { caption, strokes: 0, run: () => pullClub(id) },
-  { caption, strokes, run: (n) => returnClub(id, n) }
+  { caption, strokes, toPin, run: (step) => returnClub(id, step.strokes, step.toPin) }
 ];
 
 const SCRIPT = [
   // ...the round starts...
-  ...shot("dr", tee(2) + "Driver, centre of the fairway"),
-  ...shot("pw", "Pitching wedge, 126 — on the green, 20 feet left"),
-  ...shot("pt", "Putter — two putts from 20 feet. Par", 2),
-  ...walk("Level par through 2. Walk to hole 3"),
+  ...shot("dr", 126, tee(2) + "Driver, 263. 126 to the pin."),
+  ...shot("pw", 20 * FT, "Pitching wedge, 126, on the green. 20 feet to the pin."),
+  ...shot("pt", 0, "Putter, two putts from 20 feet. Par.", 2),
+  ...walk("Level par through 2. Walk to hole 3."),
   // ...and so on
 ];
 
 function simTick() {
   const step = SCRIPT[sim.step];
-  step.run(step.strokes);
+  step.run(step);
   sim.step += 1;
   if (sim.step >= SCRIPT.length) stopSim();
 }

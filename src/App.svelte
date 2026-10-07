@@ -63,11 +63,32 @@
     club("pt", "Putter", "PT", "putter")
   ]);
 
+  // The course card: fixed data about the course, not something that is
+  // sensed. The front nine is par 36, 3,235 yards.
+  const COURSE = {
+    name: "Tiger Village Golf Course",
+    holes: [
+      { yards: 485, par: 5 },
+      { yards: 389, par: 4 },
+      { yards: 364, par: 4 },
+      { yards: 195, par: 3 },
+      { yards: 390, par: 4 },
+      { yards: 352, par: 4 },
+      { yards: 510, par: 5 },
+      { yards: 178, par: 3 },
+      { yards: 372, par: 4 }
+    ]
+  };
+
   let round = $state({
     active: false,
     hole: 1, // 1 to 18
     strokes: 0, // the score so far, as a scorecard counts it
-    log: [] // { hole, clubId, strokes } appended on each return
+    log: [], // { hole, clubId, strokes } appended on each return
+    // Yards from the golfer to the pin, or null when it is not known. The
+    // PHONE's knowledge, never the bag's: the phone is in the golfer's
+    // pocket, the bag is back on the cart path.
+    toPin: null
   });
 
   let bag = $state({
@@ -184,14 +205,25 @@
     });
   });
 
+  // The card for the hole being played, or null when idle or past the nine
+  // holes on the card. The bag prints this in its header.
+  let holeCard = $derived(round.active ? (COURSE.holes[round.hole - 1] ?? null) : null);
+
   // ===== CONTROLS ON THE BAG, mirrored on the phone's Round tab =====
+
+  // Standing on a tee, the distance to the pin is simply the hole's yardage.
+  function teeOff() {
+    round.toPin = COURSE.holes[round.hole - 1]?.yards ?? null;
+  }
 
   function toggleRound() {
     round.active = !round.active;
+    round.toPin = null;
     if (round.active) {
       round.hole = 1;
       round.strokes = 0;
       round.log = [];
+      teeOff();
       for (const c of clubs) {
         // A club already in hand when the round starts counts as pulled on
         // hole 1, so it is not flagged until the golfer moves on without it.
@@ -201,7 +233,10 @@
   }
 
   function nextHole() {
-    if (round.active && round.hole < 18) round.hole += 1;
+    if (round.active && round.hole < 18) {
+      round.hole += 1;
+      teeOff();
+    }
   }
 
   function toggleAlerts() {
@@ -243,12 +278,18 @@
   // the putter. The bag senses the club coming back, not the swing, so the
   // number of strokes is passed in. A press on the test panel counts as one;
   // the simulation says how many each of its steps represents.
-  function returnClub(id, strokes = 1) {
+  //
+  // toPin is where the golfer now stands, in yards from the pin. On the real
+  // product the phone's GPS would supply it; here the simulation does. A
+  // manual press on the test panel has no position to give, so the phone
+  // shows the distance as unknown until the next tee.
+  function returnClub(id, strokes = 1, toPin = null) {
     const c = clubs.find((c) => c.id === id);
     if (c && !c.inBag) {
       if (round.active) {
         round.strokes += strokes;
         round.log.push({ hole: c.pulledAtHole, clubId: c.id, strokes });
+        round.toPin = toPin;
       }
       c.inBag = true;
       c.pulledAtHole = null;
@@ -268,6 +309,7 @@
     round.hole = 1;
     round.strokes = 0;
     round.log = [];
+    round.toPin = null;
     bag.distanceFromGolfer = 0;
     sim.step = 0;
   }
@@ -287,126 +329,122 @@
 
   const STANDARD_SET = ["dr", "w3", "w5", "h3", "i4", "i5", "i6", "i7", "i8", "i9", "pw", "gw", "sw", "pt"];
 
-  const COURSE = "Tiger Village Golf Course";
-
-  // The front nine: par 36, 3,235 yards.
-  const HOLES = [
-    { yards: 485, par: 5 },
-    { yards: 389, par: 4 },
-    { yards: 364, par: 4 },
-    { yards: 195, par: 3 },
-    { yards: 390, par: 4 },
-    { yards: 352, par: 4 },
-    { yards: 510, par: 5 },
-    { yards: 178, par: 3 },
-    { yards: 372, par: 4 }
-  ];
-
   // The opening words of each hole's first caption.
-  const tee = (n) => `Hole ${n}, ${HOLES[n - 1].yards} yds, par ${HOLES[n - 1].par} — `;
+  const tee = (n) => `Hole ${n}, ${COURSE.holes[n - 1].yards} yds, par ${COURSE.holes[n - 1].par} - `;
 
-  // Every step declares how many strokes it represents. Strokes are counted
-  // when the club goes back in the bag, because that is the moment the bag
-  // learns the shot is over, so the step that pulls a club declares none.
+  // Distances near the green are given in feet, as golfers do. toPin is kept
+  // in yards, so a distance in feet is written as feet * FT.
+  const FT = 1 / 3;
+
+  // Every step declares how many strokes it represents and where it leaves
+  // the golfer. Both are recorded when the club goes back in the bag,
+  // because that is the moment the bag learns the shot is over, so the step
+  // that pulls a club declares no strokes.
   //
   // One shot is two steps: the club comes out, then it goes back. Both carry
   // the same caption, so each shot stays on screen long enough to read.
-  const shot = (id, caption, strokes = 1) => [
+  const shot = (id, toPin, caption, strokes = 1) => [
     { caption, strokes: 0, run: () => pullClub(id) },
-    { caption, strokes, run: (n) => returnClub(id, n) }
+    { caption, strokes, toPin, run: (step) => returnClub(id, step.strokes, step.toPin) }
   ];
 
   // A shot after which the club is NOT put back. These two are the story.
   // Its stroke is declared by the later step that finally returns the club.
   const shotAndLeave = (id, caption) => [{ caption, strokes: 0, run: () => pullClub(id) }];
-  const recover = (id, caption, strokes = 1) => [{ caption, strokes, run: (n) => returnClub(id, n) }];
+  const recover = (id, toPin, caption, strokes = 1) => [
+    { caption, strokes, toPin, run: (step) => returnClub(id, step.strokes, step.toPin) }
+  ];
 
   const walk = (caption) => [{ caption, strokes: 0, run: () => nextHole() }];
 
   // Each full shot is hit with the club whose stock distance matches the
   // yardage left, using the 5 handicap column of a published distance chart:
-  // driver 261, 3 wood 234, 4 iron 201, 6 iron 172, 7 iron 164, 9 iron 139,
-  // pitching wedge 126, gap wedge 109, sand wedge 86. No club is exact for
-  // the two par 3s, so the result follows the club: the 4 iron (201) flies
-  // the 195 yard 4th, and the 6 iron (172) comes up short on the 178 yard 8th.
+  // driver 261, 3 hybrid 216, 4 iron 201, 6 iron 172, 7 iron 164, 9 iron 139,
+  // pitching wedge 126, gap wedge 109, sand wedge 86. Where no club is exact
+  // the result follows the club: the hybrid (216) is just short from 224 on
+  // the 1st, the 4 iron (201) flies the 195 yard 4th, and the 6 iron (172)
+  // comes up short on the 178 yard 8th.
+  //
+  // Each caption gives the distance hit and the distance left, and the two
+  // always add up: 485 less a 261 drive is 224 to the pin.
   //
   // Strokes by hole: 5 4 4 4 4 5 4 3 5, which is 38.
   const SCRIPT = [
     {
-      caption: `${COURSE}, front nine, par 36. A 6 handicap on the 1st tee`,
+      caption: `${COURSE.name}, front nine, par 36. A 6 handicap on the 1st tee.`,
       strokes: 0,
       run: () => toggleRound()
     },
 
-    ...shot("dr", tee(1) + "Driver, held up in the left rough"),
-    ...shot("w3", "3 wood, 234 — leaks right, greenside rough"),
-    ...shot("sw", "Sand wedge chip — to 10 feet"),
-    ...shot("pt", "Putter — two putts. Par", 2),
-    ...walk("Level par through 1. Walk to hole 2"),
+    ...shot("dr", 224, tee(1) + "Driver, 261. 224 to the pin."),
+    ...shot("h3", 8, "3 hybrid, 216, just short of the green. 24 feet to the pin."),
+    ...shot("sw", 10 * FT, "Sand wedge chip. 10 feet to the pin."),
+    ...shot("pt", 0, "Putter, two putts from 10 feet. Par.", 2),
+    ...walk("Level par through 1. Walk to hole 2."),
 
-    ...shot("dr", tee(2) + "Driver, centre of the fairway"),
-    ...shot("pw", "Pitching wedge, 126 — on the green, 20 feet left"),
-    ...shot("pt", "Putter — two putts from 20 feet. Par", 2),
-    ...walk("Level par through 2. Walk to hole 3"),
+    ...shot("dr", 126, tee(2) + "Driver, 263. 126 to the pin."),
+    ...shot("pw", 20 * FT, "Pitching wedge, 126, on the green. 20 feet to the pin."),
+    ...shot("pt", 0, "Putter, two putts from 20 feet. Par.", 2),
+    ...walk("Level par through 2. Walk to hole 3."),
 
     // First leave-behind: the sand wedge is dropped beside the green for the
     // putt and never picked up.
-    ...shot("dr", tee(3) + "Driver, pushed right"),
-    ...shot("gw", "Gap wedge, 109 — short right of the green"),
-    ...shotAndLeave("sw", "Sand wedge chip — checks up 4 feet from the hole"),
-    ...shot("pt", "Putter — holes the 4 footer. Par save. The sand wedge stays on the fringe"),
+    ...shot("dr", 109, tee(3) + "Driver, 255, pushed right. 109 to the pin."),
+    ...shot("gw", 9, "Gap wedge, 100, short right of the green. 27 feet to the pin."),
+    ...shotAndLeave("sw", "Sand wedge chip. 4 feet to the pin."),
+    ...shot("pt", 0, "Putter, holes the 4 footer. Par save. The sand wedge stays on the fringe."),
     // Nobody presses anything here. The alert fires because the hole number
     // moved past the hole the club was pulled on.
-    ...walk("Level par through 3. Walk to hole 4. The sand wedge is still by the 3rd green"),
+    ...walk("Level par through 3. Walk to hole 4. The sand wedge is still by the 3rd green."),
 
-    ...shot("i4", tee(4) + "4 iron, flies the green, long and left"),
-    ...shot("gw", "Reaches for the sand wedge: gone. Gap wedge chip instead — runs 12 feet past"),
-    ...shot("pt", "Putter — two putts. Bogey", 2),
+    ...shot("i4", 8, tee(4) + "4 iron, 203, flies the green. 24 feet to the pin."),
+    ...shot("gw", 12 * FT, "Reaches for the sand wedge: gone. Gap wedge chip instead, runs past. 12 feet to the pin."),
+    ...shot("pt", 0, "Putter, two putts from 12 feet. Bogey.", 2),
     // The chip on the 3rd is counted now, when the bag gets the club back.
-    ...recover("sw", "Walks back to the 3rd green and puts the sand wedge in the bag"),
-    ...walk("1 over through 4. Walk to hole 5"),
+    ...recover("sw", 0, "Walks back to the 3rd green and puts the sand wedge in the bag."),
+    ...walk("1 over through 4. Walk to hole 5."),
 
-    ...shot("dr", tee(5) + "Driver, right half of the fairway"),
-    ...shot("i9", "9 iron, 139 — 18 feet below the hole"),
-    ...shot("pt", "Putter — two putts. Par", 2),
-    ...walk("1 over through 5. Walk to hole 6"),
+    ...shot("dr", 139, tee(5) + "Driver, 251. 139 to the pin."),
+    ...shot("i9", 18 * FT, "9 iron, 139, on the green. 18 feet to the pin."),
+    ...shot("pt", 0, "Putter, two putts from 18 feet. Par.", 2),
+    ...walk("1 over through 5. Walk to hole 6."),
 
-    ...shot("dr", tee(6) + "Driver, long and straight"),
-    ...shot("sw", "Sand wedge, 86 — spins back off the front into the bunker"),
-    ...shot("sw", "Sand wedge from the bunker — out to 12 feet"),
-    ...shot("pt", "Putter — two putts. Bogey", 2),
-    ...walk("2 over through 6. Walk to hole 7"),
+    ...shot("dr", 86, tee(6) + "Driver, 266. 86 to the pin."),
+    ...shot("sw", 10, "Sand wedge, 86, spins back into the front bunker. 30 feet to the pin."),
+    ...shot("sw", 12 * FT, "Sand wedge from the bunker. 12 feet to the pin."),
+    ...shot("pt", 0, "Putter, two putts from 12 feet. Bogey.", 2),
+    ...walk("2 over through 6. Walk to hole 7."),
 
     // Second leave-behind: the putter, forgotten in the moment after a birdie.
-    ...shot("dr", tee(7) + "Driver, fairway"),
-    ...shot("i7", "7 iron lay-up, 164 — leaves a full sand wedge"),
-    ...shot("sw", "Sand wedge, 86 — 5 feet"),
-    ...shotAndLeave("pt", "Putter — holes the 5 footer. Birdie. The putter stays on the green"),
-    ...walk("1 over through 7. Walk to hole 8 without the putter"),
+    ...shot("dr", 249, tee(7) + "Driver, 261. 249 to the pin."),
+    ...shot("i7", 85, "7 iron lay-up, 164. 85 to the pin."),
+    ...shot("sw", 5 * FT, "Sand wedge, 85. 5 feet to the pin."),
+    ...shotAndLeave("pt", "Putter, holes the 5 footer. Birdie. The putter stays on the green."),
+    ...walk("1 over through 7. Walk to hole 8 without the putter."),
 
-    ...shot("i6", tee(8) + "6 iron, front edge, 30 feet short"),
-    // The birdie putt on the 7th is counted now.
-    ...recover("pt", "Reaches for the putter: it is on the 7th green. His playing partner brings it over"),
-    ...shot("pt", "Putter — two putts from 30 feet. Par", 2),
-    ...walk("1 over through 8. Walk to hole 9"),
+    ...shot("i6", 10, tee(8) + "6 iron, 168, front edge of the green. 30 feet to the pin."),
+    // The birdie putt on the 7th is counted now. He is still 30 feet away.
+    ...recover("pt", 10, "Reaches for the putter: it is on the 7th green. His playing partner brings it over."),
+    ...shot("pt", 0, "Putter, two putts from 30 feet. Par.", 2),
+    ...walk("1 over through 8. Walk to hole 9."),
 
-    ...shot("dr", tee(9) + "Driver, fairway"),
-    ...shot("gw", "Gap wedge, 109 — on, but 35 feet away"),
-    ...shot("pt", "Putter — three putts. Bogey. Out in 38, 2 over", 3),
+    ...shot("dr", 109, tee(9) + "Driver, 263. 109 to the pin."),
+    ...shot("gw", 35 * FT, "Gap wedge, 109, on the green but wide. 35 feet to the pin."),
+    ...shot("pt", 0, "Putter, three putts from 35 feet. Bogey. Out in 38, 2 over.", 3),
 
     // The second alert, at the larger scale: the bag itself is left behind,
     // and only the phone can say so.
     {
-      caption: "Walks to the clubhouse. The bag is still by the 9th green",
+      caption: "Walks to the clubhouse. The bag is still by the 9th green.",
       strokes: 0,
       run: () => setDistance(60)
     },
     {
-      caption: "The phone says the bag is 60 m behind him. Walks back for it",
+      caption: "The phone says the bag is 60 m behind him. Walks back for it.",
       strokes: 0,
       run: () => setDistance(0)
     },
-    { caption: "Round over: 38 on a par 36", strokes: 0, run: () => toggleRound() }
+    { caption: "Round over: 38 on a par 36.", strokes: 0, run: () => toggleRound() }
   ];
 
   let sim = $state({
@@ -421,7 +459,7 @@
 
   function simTick() {
     const step = SCRIPT[sim.step];
-    step.run(step.strokes);
+    step.run(step);
     sim.step += 1;
     if (sim.step >= SCRIPT.length) stopSim();
   }
@@ -503,6 +541,7 @@
             {inBagCount}
             {clubsOut}
             {leftBehind}
+            {holeCard}
           />
         </BagMount>
       </div>
