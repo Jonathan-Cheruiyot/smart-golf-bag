@@ -7,14 +7,24 @@
   // time a club is returned to the bag. Nothing is estimated or invented: if
   // no club has been returned yet, the tab says so.
   //
+  // Two different numbers, kept apart on purpose:
+  //   strokes    what the scorecard counts. A two-putt is two strokes.
+  //   club uses  how many times a club came out and went back. A two-putt
+  //              is one use of the putter.
+  // The score is strokes, so strokes lead and feed the chart. Club uses is
+  // the bag's own measure, shown as a separate, labelled stat.
+  //
   // The chart is hand-written inline SVG, no chart library. It is a column
   // chart because the question is "how many, on each hole", a count per
   // category. One series, so one neutral colour and no legend; the heading
   // says what the columns are. Red is not used: on this product red means
-  // an alert, and a shot count is not one.
+  // an alert, and a stroke count is not one.
   let { round, clubs } = $props();
 
-  let total = $derived(round.log.length);
+  const sum = (entries) => entries.reduce((n, entry) => n + entry.strokes, 0);
+
+  let totalStrokes = $derived(sum(round.log));
+  let totalUses = $derived(round.log.length);
 
   // Always at least the front nine, so a short round still reads as a round
   // and not as two stray columns.
@@ -25,32 +35,30 @@
   let perHole = $derived(
     Array.from({ length: holeCount }, (_, i) => ({
       hole: i + 1,
-      shots: round.log.filter((entry) => entry.hole === i + 1).length
+      strokes: sum(round.log.filter((entry) => entry.hole === i + 1))
     }))
   );
 
   // One row per club that was used, most used first.
   let clubsUsed = $derived(
     clubs
-      .map((club) => ({
-        id: club.id,
-        name: club.name,
-        shots: round.log.filter((entry) => entry.clubId === club.id).length,
-        holes: [...club.usedOnHoles].sort((a, b) => a - b)
-      }))
-      .filter((club) => club.shots > 0)
-      .sort((a, b) => b.shots - a.shots)
+      .map((club) => {
+        const entries = round.log.filter((entry) => entry.clubId === club.id);
+        return { id: club.id, name: club.name, uses: entries.length, strokes: sum(entries) };
+      })
+      .filter((club) => club.uses > 0)
+      .sort((a, b) => b.uses - a.uses || b.strokes - a.strokes)
   );
 
   let mostUsed = $derived.by(() => {
     if (clubsUsed.length === 0) return "";
-    const top = clubsUsed.filter((club) => club.shots === clubsUsed[0].shots);
+    const top = clubsUsed.filter((club) => club.uses === clubsUsed[0].uses);
     if (top.length === 1) return top[0].name;
     return `${top[0].name}, tied with ${top.length - 1} other${top.length > 2 ? "s" : ""}`;
   });
 
   let state = $derived(
-    round.active ? `In progress, hole ${round.hole}` : total > 0 ? "Round over" : "No round yet"
+    round.active ? `In progress, hole ${round.hole}` : totalUses > 0 ? "Round over" : "No round yet"
   );
 
   // Chart geometry, in SVG units that are also pixels.
@@ -59,14 +67,15 @@
   const TOP = 14; // room above the tallest column for its label
   let band = $derived(W / holeCount);
   let barWidth = $derived(Math.min(16, band - 4));
-  // The scale starts at zero and never stretches a quiet round: one shot is
-  // drawn at a quarter height until some hole has more than four.
-  let unit = $derived((BASE - TOP) / Math.max(4, ...perHole.map((h) => h.shots)));
+  // The scale starts at zero and never stretches a quiet round: one stroke
+  // is drawn at a quarter height until some hole has more than four.
+  let unit = $derived((BASE - TOP) / Math.max(4, ...perHole.map((h) => h.strokes)));
 
-  const plural = (n) => `${n} ${n === 1 ? "shot" : "shots"}`;
+  const strokes = (n) => `${n} ${n === 1 ? "stroke" : "strokes"}`;
+  const uses = (n) => `${n} ${n === 1 ? "use" : "uses"}`;
 
   let chartLabel = $derived(
-    "Shots per hole. " + perHole.map((h) => `Hole ${h.hole}: ${plural(h.shots)}`).join(". ") + "."
+    "Strokes per hole. " + perHole.map((h) => `Hole ${h.hole}: ${strokes(h.strokes)}`).join(". ") + "."
   );
 </script>
 
@@ -76,40 +85,44 @@
     <span>{state}</span>
   </div>
 
-  {#if total === 0}
+  {#if totalUses === 0}
     <p class="empty">
-      No shots recorded yet. A shot is logged each time a club goes back in
-      the bag during a round.
+      No strokes recorded yet. Strokes are logged each time a club goes back
+      in the bag during a round.
     </p>
   {:else}
     <dl class="stats">
       <div>
-        <dt>Total shots</dt>
-        <dd class="big">{total}</dd>
+        <dt>Total strokes</dt>
+        <dd class="big">{totalStrokes}</dd>
       </div>
       <div>
+        <dt>Club uses</dt>
+        <dd class="big soft">{totalUses}</dd>
+      </div>
+      <div class="wide">
         <dt>Most used club</dt>
         <dd>{mostUsed}</dd>
       </div>
     </dl>
 
     <figure>
-      <figcaption>Shots per hole</figcaption>
+      <figcaption>Strokes per hole</figcaption>
       <svg width={W} height="112" viewBox="0 0 {W} 112" role="img" aria-label={chartLabel}>
         <line class="baseline" x1="0" y1={BASE + 0.5} x2={W} y2={BASE + 0.5} />
         {#each perHole as h (h.hole)}
           {@const x = (h.hole - 1) * band + band / 2}
-          {#if h.shots > 0}
+          {#if h.strokes > 0}
             <rect
               class="column"
               x={x - barWidth / 2}
-              y={BASE - h.shots * unit}
+              y={BASE - h.strokes * unit}
               width={barWidth}
-              height={h.shots * unit}
+              height={h.strokes * unit}
             >
-              <title>Hole {h.hole}: {plural(h.shots)}</title>
+              <title>Hole {h.hole}: {strokes(h.strokes)}</title>
             </rect>
-            <text class="value" {x} y={BASE - h.shots * unit - 4}>{h.shots}</text>
+            <text class="value" {x} y={BASE - h.strokes * unit - 4}>{h.strokes}</text>
           {/if}
           <!-- With 18 holes there is only room to number every other one. -->
           {#if holeCount <= 9 || h.hole % 2 === 1}
@@ -125,9 +138,7 @@
         {#each clubsUsed as club (club.id)}
           <li>
             <span class="name">{club.name}</span>
-            <span class="detail">
-              {plural(club.shots)}, hole{club.holes.length === 1 ? "" : "s"} {club.holes.join(", ")}
-            </span>
+            <span class="detail">{strokes(club.strokes)}, {uses(club.uses)}</span>
           </li>
         {/each}
       </ul>
@@ -171,8 +182,12 @@
   .stats {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: var(--space-5);
+    gap: var(--space-2) var(--space-5);
     margin: 0;
+  }
+
+  .stats .wide {
+    grid-column: 1 / -1;
   }
 
   dd {
@@ -187,6 +202,13 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 36px;
+  }
+
+  /* Club uses is the secondary number, so it is the same size but lighter
+     in weight and tone: the score reads first. */
+  dd.soft {
+    font-weight: 400;
+    color: var(--phone-soft);
   }
 
   figure,

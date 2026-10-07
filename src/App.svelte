@@ -34,8 +34,7 @@
       category, // wood | hybrid | iron | wedge | putter
       loaded, // is it in today's 14, set from the phone
       inBag: true, // is it physically in its slot right now
-      pulledAtHole: null, // hole number it was taken out on
-      usedOnHoles: [] // for the phone summary
+      pulledAtHole: null // hole number it was taken out on
     };
   }
 
@@ -67,8 +66,8 @@
   let round = $state({
     active: false,
     hole: 1, // 1 to 18
-    shots: 0,
-    log: [] // { hole, clubId } appended on each return
+    strokes: 0, // the score so far, as a scorecard counts it
+    log: [] // { hole, clubId, strokes } appended on each return
   });
 
   let bag = $state({
@@ -191,10 +190,9 @@
     round.active = !round.active;
     if (round.active) {
       round.hole = 1;
-      round.shots = 0;
+      round.strokes = 0;
       round.log = [];
       for (const c of clubs) {
-        c.usedOnHoles = [];
         // A club already in hand when the round starts counts as pulled on
         // hole 1, so it is not flagged until the golfer moves on without it.
         if (!c.inBag) c.pulledAtHole = 1;
@@ -237,18 +235,20 @@
     }
   }
 
-  // A return is what counts as a shot: the club went out, was used, and came
-  // back. It is logged against the hole it was pulled on, not the hole it was
+  // A return is one use of a club: it went out, was played, and came back.
+  // It is logged against the hole it was pulled on, not the hole it was
   // returned on, so a club left behind is still credited to the right hole.
-  function returnClub(id) {
+  //
+  // A use is not always one stroke. A two-putt is two strokes and one use of
+  // the putter. The bag senses the club coming back, not the swing, so the
+  // number of strokes is passed in. A press on the test panel counts as one;
+  // the simulation says how many each of its steps represents.
+  function returnClub(id, strokes = 1) {
     const c = clubs.find((c) => c.id === id);
     if (c && !c.inBag) {
       if (round.active) {
-        round.shots += 1;
-        round.log.push({ hole: c.pulledAtHole, clubId: c.id });
-        if (!c.usedOnHoles.includes(c.pulledAtHole)) {
-          c.usedOnHoles.push(c.pulledAtHole);
-        }
+        round.strokes += strokes;
+        round.log.push({ hole: c.pulledAtHole, clubId: c.id, strokes });
       }
       c.inBag = true;
       c.pulledAtHole = null;
@@ -263,11 +263,10 @@
     for (const c of clubs) {
       c.inBag = true;
       c.pulledAtHole = null;
-      c.usedOnHoles = [];
     }
     round.active = false;
     round.hole = 1;
-    round.shots = 0;
+    round.strokes = 0;
     round.log = [];
     bag.distanceFromGolfer = 0;
     sim.step = 0;
@@ -275,61 +274,139 @@
 
   // ===== ROUND SIMULATION =====
 
-  // A scripted nine-hole round that plays by itself, one step every 1.2
-  // seconds, so both devices can be watched telling the whole story. Every
-  // step calls the SAME functions the buttons and sensors call (toggleRound,
-  // pullClub, returnClub, nextHole, setDistance). There is no separate code
-  // path, so what the simulation shows is what the real interface does.
-  const STEP_MS = 1200;
+  // A scripted nine holes that plays by itself, one step every 0.8 seconds,
+  // so both devices can be watched telling the whole story. Every step calls
+  // the SAME functions the buttons and sensors call (toggleRound, pullClub,
+  // returnClub, nextHole, setDistance). There is no separate code path, so
+  // what the simulation shows is what the real interface does.
+  //
+  // The round is a 6 handicap going out in 38 on a par 36. Each caption
+  // narrates one shot, which is what makes it worth watching: the viewer
+  // follows a golfer, and the two screens react to him.
+  const STEP_MS = 800;
 
   const STANDARD_SET = ["dr", "w3", "w5", "h3", "i4", "i5", "i6", "i7", "i8", "i9", "pw", "gw", "sw", "pt"];
 
+  const COURSE = "Tiger Village Golf Course";
+
+  // The front nine: par 36, 3,235 yards.
+  const HOLES = [
+    { yards: 485, par: 5 },
+    { yards: 389, par: 4 },
+    { yards: 364, par: 4 },
+    { yards: 195, par: 3 },
+    { yards: 390, par: 4 },
+    { yards: 352, par: 4 },
+    { yards: 510, par: 5 },
+    { yards: 178, par: 3 },
+    { yards: 372, par: 4 }
+  ];
+
+  // The opening words of each hole's first caption.
+  const tee = (n) => `Hole ${n}, ${HOLES[n - 1].yards} yds, par ${HOLES[n - 1].par} — `;
+
+  // Every step declares how many strokes it represents. Strokes are counted
+  // when the club goes back in the bag, because that is the moment the bag
+  // learns the shot is over, so the step that pulls a club declares none.
+  //
+  // One shot is two steps: the club comes out, then it goes back. Both carry
+  // the same caption, so each shot stays on screen long enough to read.
+  const shot = (id, caption, strokes = 1) => [
+    { caption, strokes: 0, run: () => pullClub(id) },
+    { caption, strokes, run: (n) => returnClub(id, n) }
+  ];
+
+  // A shot after which the club is NOT put back. These two are the story.
+  // Its stroke is declared by the later step that finally returns the club.
+  const shotAndLeave = (id, caption) => [{ caption, strokes: 0, run: () => pullClub(id) }];
+  const recover = (id, caption, strokes = 1) => [{ caption, strokes, run: (n) => returnClub(id, n) }];
+
+  const walk = (caption) => [{ caption, strokes: 0, run: () => nextHole() }];
+
+  // Each full shot is hit with the club whose stock distance matches the
+  // yardage left, using the 5 handicap column of a published distance chart:
+  // driver 261, 3 wood 234, 4 iron 201, 6 iron 172, 7 iron 164, 9 iron 139,
+  // pitching wedge 126, gap wedge 109, sand wedge 86. No club is exact for
+  // the two par 3s, so the result follows the club: the 4 iron (201) flies
+  // the 195 yard 4th, and the 6 iron (172) comes up short on the 178 yard 8th.
+  //
+  // Strokes by hole: 5 4 4 4 4 5 4 3 5, which is 38.
   const SCRIPT = [
-    { caption: "Round starts on the 1st tee", run: () => toggleRound() },
-    { caption: "Driver out on 1", run: () => pullClub("dr") },
-    { caption: "Driver back in the bag", run: () => returnClub("dr") },
-    { caption: "Walk to hole 2", run: () => nextHole() },
-    { caption: "5 Iron out on 2", run: () => pullClub("i5") },
-    { caption: "5 Iron back in the bag", run: () => returnClub("i5") },
-    { caption: "Walk to hole 3", run: () => nextHole() },
-    { caption: "7 Iron out for the approach on 3", run: () => pullClub("i7") },
-    { caption: "Putter out on the green", run: () => pullClub("pt") },
-    { caption: "Putter back. The 7 Iron is still lying by the green", run: () => returnClub("pt") },
-    // The moment the project is about: nobody presses anything, the alert
-    // fires because the hole number moved past the hole the club was pulled on.
-    { caption: "Walk to hole 4 without it. The bag notices, then tells the phone", run: () => nextHole() },
-    { caption: "Plays on to hole 5. The alert stays up", run: () => nextHole() },
-    { caption: "Goes back for the 7 Iron and returns it. The alert clears", run: () => returnClub("i7") },
     {
-      caption: "Skips ahead to hole 8",
-      run: () => {
-        nextHole();
-        nextHole();
-        nextHole();
-      }
+      caption: `${COURSE}, front nine, par 36. A 6 handicap on the 1st tee`,
+      strokes: 0,
+      run: () => toggleRound()
     },
-    { caption: "Sand Wedge out of the bunker on 8", run: () => pullClub("sw") },
-    { caption: "Walk to hole 9. The Sand Wedge is still in the bunker", run: () => nextHole() },
-    {
-      caption: "Pitching Wedge and Putter out on 9",
-      run: () => {
-        pullClub("pw");
-        pullClub("pt");
-      }
-    },
+
+    ...shot("dr", tee(1) + "Driver, held up in the left rough"),
+    ...shot("w3", "3 wood, 234 — leaks right, greenside rough"),
+    ...shot("sw", "Sand wedge chip — to 10 feet"),
+    ...shot("pt", "Putter — two putts. Par", 2),
+    ...walk("Level par through 1. Walk to hole 2"),
+
+    ...shot("dr", tee(2) + "Driver, centre of the fairway"),
+    ...shot("pw", "Pitching wedge, 126 — on the green, 20 feet left"),
+    ...shot("pt", "Putter — two putts from 20 feet. Par", 2),
+    ...walk("Level par through 2. Walk to hole 3"),
+
+    // First leave-behind: the sand wedge is dropped beside the green for the
+    // putt and never picked up.
+    ...shot("dr", tee(3) + "Driver, pushed right"),
+    ...shot("gw", "Gap wedge, 109 — short right of the green"),
+    ...shotAndLeave("sw", "Sand wedge chip — checks up 4 feet from the hole"),
+    ...shot("pt", "Putter — holes the 4 footer. Par save. The sand wedge stays on the fringe"),
+    // Nobody presses anything here. The alert fires because the hole number
+    // moved past the hole the club was pulled on.
+    ...walk("Level par through 3. Walk to hole 4. The sand wedge is still by the 3rd green"),
+
+    ...shot("i4", tee(4) + "4 iron, flies the green, long and left"),
+    ...shot("gw", "Reaches for the sand wedge: gone. Gap wedge chip instead — runs 12 feet past"),
+    ...shot("pt", "Putter — two putts. Bogey", 2),
+    // The chip on the 3rd is counted now, when the bag gets the club back.
+    ...recover("sw", "Walks back to the 3rd green and puts the sand wedge in the bag"),
+    ...walk("1 over through 4. Walk to hole 5"),
+
+    ...shot("dr", tee(5) + "Driver, right half of the fairway"),
+    ...shot("i9", "9 iron, 139 — 18 feet below the hole"),
+    ...shot("pt", "Putter — two putts. Par", 2),
+    ...walk("1 over through 5. Walk to hole 6"),
+
+    ...shot("dr", tee(6) + "Driver, long and straight"),
+    ...shot("sw", "Sand wedge, 86 — spins back off the front into the bunker"),
+    ...shot("sw", "Sand wedge from the bunker — out to 12 feet"),
+    ...shot("pt", "Putter — two putts. Bogey", 2),
+    ...walk("2 over through 6. Walk to hole 7"),
+
+    // Second leave-behind: the putter, forgotten in the moment after a birdie.
+    ...shot("dr", tee(7) + "Driver, fairway"),
+    ...shot("i7", "7 iron lay-up, 164 — leaves a full sand wedge"),
+    ...shot("sw", "Sand wedge, 86 — 5 feet"),
+    ...shotAndLeave("pt", "Putter — holes the 5 footer. Birdie. The putter stays on the green"),
+    ...walk("1 over through 7. Walk to hole 8 without the putter"),
+
+    ...shot("i6", tee(8) + "6 iron, front edge, 30 feet short"),
+    // The birdie putt on the 7th is counted now.
+    ...recover("pt", "Reaches for the putter: it is on the 7th green. His playing partner brings it over"),
+    ...shot("pt", "Putter — two putts from 30 feet. Par", 2),
+    ...walk("1 over through 8. Walk to hole 9"),
+
+    ...shot("dr", tee(9) + "Driver, fairway"),
+    ...shot("gw", "Gap wedge, 109 — on, but 35 feet away"),
+    ...shot("pt", "Putter — three putts. Bogey. Out in 38, 2 over", 3),
+
     // The second alert, at the larger scale: the bag itself is left behind,
     // and only the phone can say so.
-    { caption: "Walks to the clubhouse at the turn. The bag stays by the green", run: () => setDistance(60) },
-    { caption: "Walks back to the bag", run: () => setDistance(0) },
     {
-      caption: "All three clubs returned",
-      run: () => {
-        returnClub("sw");
-        returnClub("pw");
-        returnClub("pt");
-      }
+      caption: "Walks to the clubhouse. The bag is still by the 9th green",
+      strokes: 0,
+      run: () => setDistance(60)
     },
-    { caption: "Round ends after nine holes", run: () => toggleRound() }
+    {
+      caption: "The phone says the bag is 60 m behind him. Walks back for it",
+      strokes: 0,
+      run: () => setDistance(0)
+    },
+    { caption: "Round over: 38 on a par 36", strokes: 0, run: () => toggleRound() }
   ];
 
   let sim = $state({
@@ -343,7 +420,8 @@
   let simTimer = null;
 
   function simTick() {
-    SCRIPT[sim.step].run();
+    const step = SCRIPT[sim.step];
+    step.run(step.strokes);
     sim.step += 1;
     if (sim.step >= SCRIPT.length) stopSim();
   }
@@ -464,6 +542,7 @@
       running={sim.running}
       step={sim.step}
       total={SCRIPT.length}
+      strokes={round.strokes}
       caption={simCaption}
     />
     <h2 class="testbar-label">
@@ -502,8 +581,8 @@
       <dt>Club buttons (DR, 3W, 7i and so on)</dt>
       <dd>
         Each one is the sensor in one slot at the top of the bag. Press it to
-        lift that club out; press it again to put it back. A filled button
-        means the club is out.
+        lift that club out; press it again to put it back, which counts as
+        one stroke during a round. A filled button means the club is out.
       </dd>
       <dt>Walk away</dt>
       <dd>
@@ -513,10 +592,11 @@
       </dd>
       <dt>Play round</dt>
       <dd>
-        Plays a scripted nine-hole round by itself, one step every 1.2
-        seconds, with a caption above the bar saying what the golfer just
-        did. It shows both alerts. While it plays the button reads Stop, and
-        the other test controls are switched off.
+        Plays a scripted nine holes by itself, about 55 seconds, with a
+        caption above the bar narrating each shot. A sand wedge and then the
+        putter get left on a green, and at the end the bag itself is left
+        behind, so it shows both alerts. While it plays the button reads
+        Stop, and the other test controls are switched off.
       </dd>
       <dt>Reset</dt>
       <dd>

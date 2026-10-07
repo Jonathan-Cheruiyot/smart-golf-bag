@@ -3,7 +3,7 @@
   // the bag shows (the count and whether something is wrong) so the golfer
   // can trust that both devices agree, then adds what a two-second glance at
   // the bag has no room for: exactly which clubs are out, the hole each one
-  // was pulled on, and the running shot count.
+  // was pulled on, and the running stroke count.
   //
   // It also repeats the bag's three controls. The golfer may be at the bag
   // or may have walked ahead with only the phone, and either device should
@@ -97,8 +97,8 @@
   </section>
 
   <section class="shots">
-    <h3>Shots this round</h3>
-    <p class="shot-count">{round.shots}</p>
+    <h3>Strokes this round</h3>
+    <p class="shot-count">{round.strokes}</p>
   </section>
 
   <section>

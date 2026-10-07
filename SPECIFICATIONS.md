@@ -95,16 +95,15 @@ clubs = [
     category: 'iron',        // wood | hybrid | iron | wedge | putter
     loaded: true,            // is it in today's 14, set from the phone
     inBag: true,             // is it physically in its slot right now
-    pulledAtHole: null,      // hole number it was taken out on
-    usedOnHoles: []          // for the phone summary
+    pulledAtHole: null       // hole number it was taken out on
   }
 ]
 
 round = {
   active: false,
   hole: 1,                   // 1 to 18
-  shots: 0,
-  log: []                    // { hole, clubId } appended on each return
+  strokes: 0,                // the score so far, as a scorecard counts it
+  log: []                    // { hole, clubId, strokes } appended on each return
 }
 
 bag = {
@@ -377,11 +376,35 @@ live.
    not a separate code path. Otherwise the demo proves nothing about the real
    interface.
 
-5. As built: 21 steps, about 25 seconds. The 7 Iron is left on hole 3 and
-   recovered on hole 5; a Sand Wedge is left on hole 8; and at the turn on
-   hole 9 the golfer walks 60 m from the bag with two clubs in hand, which
-   puts three clubs out and both alerts on the phone at once. A step may call
-   more than one manual function, for example returning three clubs.
+5. As built (revised after Phase 8): 72 steps at 0.8 seconds, about 57
+   seconds. It is a 6 handicap going out in 38 on a par 36 at Tiger Village
+   Golf Course, and each caption narrates one shot, for example "Hole 3, 364
+   yds, par 4 — Driver, pushed right". Every full shot uses the club whose
+   stock distance matches the yardage left, from a 5 handicap distance chart.
+   - A shot is two steps with the same caption, club out then club back, so
+     each one stays on screen for 1.6 seconds.
+   - The sand wedge is left by the green on hole 3; the alert fires on hole
+     4, he chips with the gap wedge instead, and collects it before hole 5.
+   - The putter is left on the green on hole 7 after a birdie; the alert
+     fires on hole 8 and it is returned before he putts.
+   - After hole 9 he walks to the clubhouse without the bag, which fires the
+     away-from-bag alert, then walks back and the round ends.
+   - The hole layout is the one Jonathan supplied: pars 5 4 4 3 4 4 5 3 4,
+     yards 485 389 364 195 390 352 510 178 372, par 36 and 3,235 yards. It
+     lives in one `HOLES` list in `App.svelte`.
+   - **Strokes, not club uses.** Each step declares how many strokes it
+     represents, and `returnClub(id, strokes)` logs them when the club goes
+     back in the bag. A two-putt is two strokes and one use of the putter. A
+     manual return on the test panel counts as one stroke. Strokes by hole
+     are 5 4 4 4 4 5 4 3 5, which is 38; the round has 30 club uses. The
+     phone's Summary tab, its chart, the Round tab and the test bar all read
+     the same `round.strokes` and `round.log`.
+   - A stroke on a club that was left behind is counted when the club comes
+     back, so the running total is one behind between the 3rd green and the
+     5th tee, and between the 7th green and the 8th green. It is credited to
+     the hole the club was pulled on.
+   - The original script (21 steps at 1.2 seconds, a 7 Iron left on hole 3)
+     is superseded.
 6. Play first resets the bag, loads the standard 14, turns alerts on and
    opens the phone's Round tab, so the script always tells the same story.
    The manual sensors, slider and Reset are disabled while it plays.
@@ -396,8 +419,9 @@ tell a complete story including both alert types.
 
 > **Decision 4: simulation pacing — RESOLVED**
 >
-> 1.2 seconds per step, no speed control. A nine-hole run is about 25
-> seconds, which fits a 2 to 3 minute demo video.
+> No speed control. First set at 1.2 seconds per step for a 25 second run;
+> revised to 0.8 seconds per step when the script became a shot-by-shot
+> round, for a run of about 57 seconds.
 
 ---
 
@@ -443,8 +467,9 @@ part of the interface physically lives.
 1. `PhoneSummary.svelte`: post-round stats from `round.log`, drawn as
    hand-written inline SVG. Shots per hole as a small column chart in
    `--phone-text` on the phone's dark ground (the spec first said `--ink`,
-   which is near-black and would be invisible there), plus total shots,
-   most-used club, and a list of clubs used with the holes each was used on.
+   which is near-black and would be invisible there). The chart and the
+   headline number count strokes; club uses is a separate, labelled stat,
+   and the list of clubs used gives both for each club.
    No chart library. With nothing logged it says so; it never shows invented
    numbers.
 2. Accessibility pass against the checklist in `CLAUDE.md`. Specifically

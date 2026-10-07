@@ -12,7 +12,11 @@
   // Motion: the bar may tween, the one harness animation after load that
   // MOTION.md allows. It scales with transform, never width, because
   // transform is cheap for the browser to animate.
-  let { running, step, total, caption } = $props();
+  //
+  // It also shows the running stroke count, read from the same round state
+  // as the phone, so the test bar and the phone's Summary can be checked
+  // against each other.
+  let { running, step, total, strokes, caption } = $props();
 
   let stateWord = $derived(
     running ? "Playing" : step === total ? "Finished" : "Stopped"
@@ -22,6 +26,7 @@
 {#if step > 0}
   <p class="caption">
     <span class="step">{stateWord} {String(step).padStart(2, "0")} / {total}</span>
+    <span class="step">{strokes} {strokes === 1 ? "stroke" : "strokes"}</span>
     {caption}
   </p>
 {/if}

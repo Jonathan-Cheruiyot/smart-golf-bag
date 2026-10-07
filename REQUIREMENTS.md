@@ -219,9 +219,9 @@ than a two-second glance.
       only alert someone standing at it; the away-from-bag alert appears on
       the phone alone.
 - [x] **[done]** **Option 4, simulate the object in use over time.** Play
-      round runs a scripted nine-hole round in 21 steps at 1.2 seconds each,
-      calling the same functions as the manual controls, and fires both
-      alerts.
+      round runs a scripted nine holes, shot by shot, in 72 steps at 0.8
+      seconds each (about 57 seconds), calling the same functions as the
+      manual controls, and fires both alerts.
 
 **Option 1. Complex set of selections.** Design a UI for inputs the basic
 interface cannot handle. Selections must be clearly visible with quick
