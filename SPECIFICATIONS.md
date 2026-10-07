@@ -267,17 +267,26 @@ legible as a photocopy, with no color carrying meaning alone.
    what the bag cannot show, such as the list of clubs out with the hole each
    was pulled on, and a running shot count.
 4. A notification band at the top of the phone that appears when `leftBehind`
-   is non-empty, worded for someone who is not looking at the bag.
+   is non-empty, worded for someone who is not looking at the bag. It follows
+   the shared alert preference: with alerts off there is no band, though the
+   clubs-out list still marks the club as left behind.
+5. `phone` state (`paired`, `tab`, `notifications`) lives in `App.svelte`.
+   Setup and Summary are placeholder text until Phases 4 and 7.
+6. Motion, from `MOTION.md`: tabs slide in the direction navigated (240ms in,
+   140ms out), the band slides down and fades in and leaves by fading only,
+   and the phone's count settles with a spring. All three check
+   `prefers-reduced-motion` in JavaScript.
 
 **Acceptance:** pulling a club on the test panel updates both devices at
 once. The phone shows strictly more detail than the bag.
 
-> **PAUSE AND ASK JONATHAN — Decision 2: phone personality**
+> **Decision 2: phone personality — RESOLVED**
 >
-> The phone can be either a **companion** that mirrors and explains, or a
-> **remote control** that commands the bag. The spec assumes companion for
-> the Round tab and remote for the Setup tab. Confirm that split, or pick one
-> and apply it throughout. This changes what the Setup tab is allowed to do.
+> Jonathan confirmed the split, then widened it in Phase 4. The Round tab is
+> a **companion** that also repeats the bag's three controls (Start/End
+> Round, Next Hole, Alerts): either device can trigger them and both reflect
+> the result. The Setup tab is a **remote control** for which clubs are
+> loaded. Club loading and round history stay phone-only.
 
 ---
 
@@ -303,13 +312,31 @@ actually true in the code.
    naming how far away the bag is. The bag screen shows nothing, because
    nobody is there to read it.
 
+6. The three bag controls are mirrored on the phone's Round tab and call the
+   same functions in `App.svelte`. The alert preference is changed there (and
+   on the bag), not on the Setup tab, so the phone has one place for it. Alerts
+   off silences both the left-behind and the away-from-bag notification.
+7. A loaded club that is currently out of the bag cannot be deselected, and
+   the Setup tab says why, so a club can never vanish from the rack mid-shot.
+8. The test panel gains a "Walk away" slider, 0 to 100 m, for
+   `bag.distanceFromGolfer`. Its "Advance hole" button is removed, since Next
+   Hole now exists on both devices.
+9. Motion, from `MOTION.md`: `animate:flip` on the Round tab's clubs-out
+   list, and the cross-device relay. Jonathan chose the 200ms relay: the bag's
+   alert appears first and the phone notification follows 200ms later, staged
+   by one effect in `App.svelte` from the single `leftBehind` change. The
+   away alert is not delayed, because the phone measures distance itself. The
+   pairing-line flash between the two waits for Phase 6, when the line exists.
+
 **Acceptance:** deselect a club on the phone and its rack slot disappears
 from the bag; walk away on the test panel and only the phone reacts.
 
-> **PAUSE AND ASK JONATHAN — Decision 3: his real club set**
+> **Decision 3: his real club set — RESOLVED**
 >
-> The list of about 18 owned clubs should be plausible. Ask what he actually
-> carries, or whether to use a standard set. Do not invent brand names.
+> A standard 18-club set with no brands: driver, 3 and 5 wood, 3, 4 and 5
+> hybrid, 4 through 9 iron, pitching, gap, sand and lob wedge, 60° wedge,
+> putter. The day starts with 14 loaded; the 4 and 5 hybrid, lob wedge and
+> 60° wedge start at home.
 
 ---
 
@@ -440,8 +467,10 @@ actions:
 Collected from the phase markers above, in the order they come up:
 
 1. ~~**Device arrangement** on the page (Phase 1)~~ Resolved, see Phase 1
-2. **Phone personality**, companion versus remote control (Phase 3)
-3. **His real club set**, or use a standard 18 (Phase 4)
+2. ~~**Phone personality**, companion versus remote control (Phase 3)~~
+   Resolved, see Phase 3
+3. ~~**His real club set**, or use a standard 18 (Phase 4)~~ Resolved, see
+   Phase 4
 4. **Simulation pacing**, and whether to add a speed control (Phase 5)
 5. **GitHub and write-up URLs** (Phase 8)
 

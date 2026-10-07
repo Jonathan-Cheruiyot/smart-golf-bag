@@ -2,12 +2,14 @@
   // The test panel stands in for the hardware this mock-up does not have.
   // Each club button is one slot sensor in the top cuff: press it to lift
   // that club out, press it again to put it back. A pressed button means the
-  // club is out, which is what a real sensor would report.
+  // club is out, which is what a real sensor would report. The slider is the
+  // distance between the golfer's phone and the bag, which a real phone would
+  // estimate from the strength of the bag's radio signal.
   //
   // It is deliberately quiet, small muted type in a bar at the bottom,
   // because these controls are scaffolding for the demo and must not compete
   // with the two devices they drive.
-  let { clubs, roundActive, onPull, onReturn, onNextHole, onReset } = $props();
+  let { clubs, distance, onPull, onReturn, onDistance, onReset } = $props();
 </script>
 
 <div class="panel">
@@ -26,9 +28,20 @@
   </div>
 
   <div class="group">
-    <button onclick={onNextHole} disabled={!roundActive}>Advance hole</button>
-    <button onclick={onReset}>Reset</button>
+    <label class="caption" for="distance">Walk<br />away</label>
+    <input
+      id="distance"
+      type="range"
+      min="0"
+      max="100"
+      step="5"
+      value={distance}
+      oninput={(event) => onDistance(Number(event.target.value))}
+    />
+    <output class="readout" for="distance">{distance} m</output>
   </div>
+
+  <button onclick={onReset}>Reset</button>
 </div>
 
 <style>
@@ -37,6 +50,7 @@
     flex: 1;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-4);
   }
 
   .group {
@@ -52,6 +66,26 @@
     line-height: 16px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    color: var(--table-soft);
+  }
+
+  /* 44px tall so the thumb is a full-size target. The colour comes from the
+     page's soft ink so the slider stays as quiet as the buttons. */
+  input {
+    width: 144px;
+    height: 44px;
+    margin: 0;
+    accent-color: var(--table-soft);
+    cursor: pointer;
+  }
+
+  .readout {
+    width: 48px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    text-align: right;
     color: var(--table-soft);
   }
 
@@ -78,7 +112,7 @@
     text-transform: none;
   }
 
-  button:hover:not(:disabled) {
+  button:hover {
     background: var(--grid);
   }
 
@@ -90,18 +124,14 @@
     color: var(--table);
   }
 
-  button:active:not(:disabled) {
+  button:active {
     transform: translateY(1px);
     transition: none;
   }
 
-  button:focus-visible {
+  button:focus-visible,
+  input:focus-visible {
     outline: 2px solid var(--flag);
     outline-offset: 2px;
-  }
-
-  button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
   }
 </style>

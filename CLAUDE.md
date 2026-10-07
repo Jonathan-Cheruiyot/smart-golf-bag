@@ -59,7 +59,7 @@ everywhere. Do not hardcode hex values inside components.
 --paper:        #E6E2D7;  /* panel ground */
 --paper-sunk:   #DAD5C7;  /* inset areas, rules */
 --ink:          #15171A;  /* primary text, numerals */
---ink-soft:     #6E6A5F;  /* labels, secondary */
+--ink-soft:     #68645A;  /* labels, secondary (4.56:1 on --paper) */
 --flag:         #B23A2E;  /* alerts ONLY */
 --bezel:        #2A2B28;  /* the physical housing around the screen */
 ```

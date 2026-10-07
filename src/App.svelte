@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from "svelte";
   // The page is a drafting table, and its hierarchy is the design argument:
   // the two devices are the centre stage and everything else serves them.
   // Project info is a slim header strip, the placement drawing is a small
@@ -14,6 +15,7 @@
   import WorkbenchOverlay from "./lib/WorkbenchOverlay.svelte";
   import BagGraphic from "./lib/BagGraphic.svelte";
   import BagDisplay from "./lib/BagDisplay.svelte";
+  import PhoneShell from "./lib/PhoneShell.svelte";
   import TestPanel from "./lib/TestPanel.svelte";
 
   // ===== STATE =====
@@ -21,25 +23,31 @@
   // One entry per club slot. pulledAtHole is what makes left-behind detection
   // possible: a club in hand on the CURRENT hole is normal, the same club
   // still out on a LATER hole was left behind.
-  function club(id, name, short, category) {
+  function club(id, name, short, category, loaded = true) {
     return {
       id,
       name,
       short,
       category, // wood | hybrid | iron | wedge | putter
-      loaded: true, // is it in today's 14, set from the phone
+      loaded, // is it in today's 14, set from the phone
       inBag: true, // is it physically in its slot right now
       pulledAtHole: null, // hole number it was taken out on
       usedOnHoles: [] // for the phone summary
     };
   }
 
-  // The 14 clubs a USGA-legal bag can carry.
+  // The 18 clubs the golfer owns: a standard set, no brands. The rules allow
+  // 14 in the bag, so four start the day at home and the phone's Setup tab
+  // swaps them in, the way golfers trade a wood for a hybrid to suit a course.
+  const LIMIT = 14;
+
   let clubs = $state([
     club("dr", "Driver", "DR", "wood"),
     club("w3", "3 Wood", "3W", "wood"),
     club("w5", "5 Wood", "5W", "wood"),
     club("h3", "3 Hybrid", "3H", "hybrid"),
+    club("h4", "4 Hybrid", "4H", "hybrid", false),
+    club("h5", "5 Hybrid", "5H", "hybrid", false),
     club("i4", "4 Iron", "4i", "iron"),
     club("i5", "5 Iron", "5i", "iron"),
     club("i6", "6 Iron", "6i", "iron"),
@@ -49,6 +57,8 @@
     club("pw", "Pitching Wedge", "PW", "wedge"),
     club("gw", "Gap Wedge", "GW", "wedge"),
     club("sw", "Sand Wedge", "SW", "wedge"),
+    club("lw", "Lob Wedge", "LW", "wedge", false),
+    club("w60", "60° Wedge", "60", "wedge", false),
     club("pt", "Putter", "PT", "putter")
   ]);
 
@@ -61,7 +71,13 @@
 
   let bag = $state({
     alertsOn: true,
-    distanceFromGolfer: 0 // metres, driven by the test panel from Phase 4
+    distanceFromGolfer: 0 // metres, driven by the test panel
+  });
+
+  let phone = $state({
+    paired: true,
+    tab: "round", // round | setup | summary
+    notifications: [] // { id, kind, title, text, hole }
   });
 
   // Which overlay is open. Page chrome, not product state.
@@ -78,7 +94,84 @@
   // the bag on a later hole than the one it was pulled on.
   let leftBehind = $derived(clubsOut.filter((c) => c.pulledAtHole < round.hole));
 
-  // ===== CONTROLS ON THE BAG =====
+  // The bag itself has been left behind: the golfer is more than 30 metres
+  // away mid-round. Only the phone can report this, because nobody is
+  // standing at the bag to read its screen. This is why there are two devices.
+  let bagAbandoned = $derived(bag.distanceFromGolfer > 30 && round.active);
+
+  // ===== THE RELAY: bag to phone =====
+
+  // When the bag raises a left-behind alert, the phone's notification follows
+  // 200ms later. The delay makes the causal chain visible: the bag sensed it,
+  // then told the phone. Both come from the one state change in leftBehind,
+  // so they can never disagree. The away alert has no delay, because the
+  // phone measures the distance itself and nothing is relayed.
+  const RELAY_MS = 200;
+
+  $effect(() => {
+    const wanted = [];
+
+    if (bag.alertsOn && leftBehind.length === 1) {
+      const c = leftBehind[0];
+      wanted.push({
+        id: "left-behind",
+        kind: "left-behind",
+        hole: c.pulledAtHole,
+        title: "Club left behind",
+        // Worded for someone who is NOT looking at the bag: what is missing
+        // and where they last had it, which is where to walk back to.
+        text: `Your ${c.name} is not in the bag. You last had it on hole ${c.pulledAtHole}.`
+      });
+    } else if (bag.alertsOn && leftBehind.length > 1) {
+      wanted.push({
+        id: "left-behind",
+        kind: "left-behind",
+        hole: leftBehind[0].pulledAtHole,
+        title: `${leftBehind.length} clubs left behind`,
+        text: leftBehind.map((c) => `${c.name} (hole ${c.pulledAtHole})`).join(", ") + " are not in the bag."
+      });
+    }
+
+    if (bag.alertsOn && bagAbandoned) {
+      wanted.push({
+        id: "away",
+        kind: "away",
+        hole: round.hole,
+        title: "You left your bag",
+        text: `Your bag is ${bag.distanceFromGolfer} m behind you.`
+      });
+    }
+
+    // untrack: this block edits phone.notifications, and must not re-run
+    // itself because of its own edit.
+    return untrack(() => {
+      // Anything no longer true clears at once.
+      phone.notifications = phone.notifications.filter((n) =>
+        wanted.some((w) => w.id === n.id)
+      );
+
+      const relayed = [];
+      for (const w of wanted) {
+        const showing = phone.notifications.find((n) => n.id === w.id);
+        if (showing) {
+          // Already on screen: keep it and refresh the wording in place.
+          showing.title = w.title;
+          showing.text = w.text;
+          showing.hole = w.hole;
+        } else if (w.kind === "away") {
+          phone.notifications.push(w);
+        } else {
+          relayed.push(w);
+        }
+      }
+
+      if (relayed.length === 0) return;
+      const timer = setTimeout(() => phone.notifications.unshift(...relayed), RELAY_MS);
+      return () => clearTimeout(timer);
+    });
+  });
+
+  // ===== CONTROLS ON THE BAG, mirrored on the phone's Round tab =====
 
   function toggleRound() {
     round.active = !round.active;
@@ -101,6 +194,23 @@
 
   function toggleAlerts() {
     bag.alertsOn = !bag.alertsOn;
+  }
+
+  // ===== CONTROLS ON THE PHONE =====
+
+  function setPhoneTab(tab) {
+    phone.tab = tab;
+  }
+
+  // Phone to bag: the rack on the bag redraws as soon as this changes. The
+  // two guards repeat the checks in PhoneSetup, so the rule holds no matter
+  // what calls this.
+  function toggleLoaded(id) {
+    const c = clubs.find((c) => c.id === id);
+    if (!c) return;
+    if (!c.loaded && loadedClubs.length >= LIMIT) return;
+    if (c.loaded && !c.inBag) return;
+    c.loaded = !c.loaded;
   }
 
   // ===== SENSORS: called by the test panel, standing in for the slots =====
@@ -131,6 +241,10 @@
     }
   }
 
+  function setDistance(metres) {
+    bag.distanceFromGolfer = metres;
+  }
+
   function resetBag() {
     for (const c of clubs) {
       c.inBag = true;
@@ -141,6 +255,7 @@
     round.hole = 1;
     round.shots = 0;
     round.log = [];
+    bag.distanceFromGolfer = 0;
   }
 </script>
 
@@ -197,8 +312,24 @@
 
     <div class="phone-col">
       <WorkbenchLabel label="Phone" note="paired device" />
-      <div class="slot reveal" style="--reveal-step: 2">
-        <p class="slot-note">PhoneShell, Phase 3</p>
+      <div class="reveal" style="--reveal-step: 2">
+        <PhoneShell
+          paired={phone.paired}
+          tab={phone.tab}
+          onTab={setPhoneTab}
+          notifications={phone.notifications}
+          {clubs}
+          {round}
+          loadedCount={loadedClubs.length}
+          {inBagCount}
+          {clubsOut}
+          {leftBehind}
+          alertsOn={bag.alertsOn}
+          onToggleRound={toggleRound}
+          onNextHole={nextHole}
+          onToggleAlerts={toggleAlerts}
+          onToggleLoaded={toggleLoaded}
+        />
       </div>
     </div>
   </section>
@@ -211,10 +342,10 @@
     </h2>
     <TestPanel
       clubs={loadedClubs}
-      roundActive={round.active}
+      distance={bag.distanceFromGolfer}
       onPull={pullClub}
       onReturn={returnClub}
-      onNextHole={nextHole}
+      onDistance={setDistance}
       onReset={resetBag}
     />
   </section>
@@ -236,7 +367,12 @@
       7 Iron, then press Next Hole without returning it. The bag flags the
       club you walked away from and names the hole you left it on.
     </p>
-    <p>Reset puts every club back and ends the round.</p>
+    <p>
+      The Walk away slider is how far you are from the bag. Move it past 30
+      metres during a round and the phone warns you that you left the bag
+      itself. The bag shows nothing, because nobody is there to read it.
+    </p>
+    <p>Reset puts every club back, ends the round and walks you back to the bag.</p>
   </div>
 </WorkbenchOverlay>
 
@@ -337,25 +473,6 @@
   /* 300 by 620 is the phone body size fixed in the spec. */
   .phone-col {
     width: 300px;
-  }
-
-  /* An empty slot is a dashed outline, the drafting convention for
-     "reserved", with square corners and no fill so the grid shows through. */
-  .slot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    height: 620px;
-    border: 1px dashed var(--table-soft);
-  }
-
-  .slot-note {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: var(--table-soft);
   }
 
   /* Quieter than everything above it: smaller type and the soft ink, because

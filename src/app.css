@@ -8,7 +8,8 @@
   --paper: #E6E2D7;        /* panel ground */
   --paper-sunk: #DAD5C7;   /* inset areas, rules */
   --ink: #15171A;          /* primary text, numerals */
-  --ink-soft: #6E6A5F;     /* labels, secondary */
+  --ink-soft: #68645A;     /* labels, secondary. Darkened from #6E6A5F, which
+                              was 4.17:1 on --paper; this is 4.56:1 */
   --bezel: #2A2B28;        /* the physical housing around the screen */
 
   /* Phone (OLED): held close with full attention, so dark and denser. */
