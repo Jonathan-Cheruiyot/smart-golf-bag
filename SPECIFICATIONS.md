@@ -70,6 +70,8 @@ App.svelte                  owns ALL state, renders header strip, stage, test ba
 │   ├── PhoneRound.svelte    live round view, mirrors bag state
 │   ├── PhoneSetup.svelte    choose which 14 clubs are loaded
 │   └── PhoneSummary.svelte  post-round stats, hand-drawn SVG
+├── PairingLine.svelte       dashed line between the devices, flashes on relay
+├── SimProgress.svelte       simulation progress bar and step caption
 ├── BagGraphic.svelte        placement drawing, four numbered zones; `compact`
 │                            for the header figure, full size in the overlay
 └── TestPanel.svelte         all simulation controls, in the bottom bar
@@ -333,10 +335,11 @@ from the bag; walk away on the test panel and only the phone reacts.
 
 > **Decision 3: his real club set — RESOLVED**
 >
-> A standard 18-club set with no brands: driver, 3 and 5 wood, 3, 4 and 5
-> hybrid, 4 through 9 iron, pitching, gap, sand and lob wedge, 60° wedge,
-> putter. The day starts with 14 loaded; the 4 and 5 hybrid, lob wedge and
-> 60° wedge start at home.
+> A standard 17-club set with no brands: driver, 3 and 5 wood, 3, 4 and 5
+> hybrid, 4 through 9 iron, pitching, gap and sand wedge, 60° wedge, putter.
+> The lob wedge was dropped because it is the same club as the 60° wedge.
+> The day starts with 14 loaded; the 4 and 5 hybrid and the 60° wedge start
+> at home.
 
 ---
 
@@ -358,13 +361,27 @@ live.
    not a separate code path. Otherwise the demo proves nothing about the real
    interface.
 
+5. As built: 21 steps, about 25 seconds. The 7 Iron is left on hole 3 and
+   recovered on hole 5; a Sand Wedge is left on hole 8; and at the turn on
+   hole 9 the golfer walks 60 m from the bag with two clubs in hand, which
+   puts three clubs out and both alerts on the phone at once. A step may call
+   more than one manual function, for example returning three clubs.
+6. Play first resets the bag, loads the standard 14, turns alerts on and
+   opens the phone's Round tab, so the script always tells the same story.
+   The manual sensors, slider and Reset are disabled while it plays.
+7. `SimProgress.svelte` is the progress indicator: a bar drawn over the test
+   bar's top rule, plus a one-line caption above it naming the step. Per
+   `MOTION.md` the bar tweens, using `transform`.
+8. The phone's Round tab was tightened so that three clubs out, both alerts
+   and the controls fit without scrolling.
+
 **Acceptance:** press play, walk away from the keyboard, and both devices
 tell a complete story including both alert types.
 
-> **PAUSE AND ASK JONATHAN — Decision 4: simulation pacing**
+> **Decision 4: simulation pacing — RESOLVED**
 >
-> 1.2 seconds per step makes a nine-hole run about 25 seconds, which fits a
-> 2 to 3 minute demo video. Confirm, or ask whether he wants a speed control.
+> 1.2 seconds per step, no speed control. A nine-hole run is about 25
+> seconds, which fits a 2 to 3 minute demo video.
 
 ---
 
@@ -386,6 +403,16 @@ flat surface.
    the header strip (bag only, 27 by 48, no callout text) and full size in
    the overlay. Both must be restyled, and the compact one must stay legible
    at that size.
+
+5. A second pairing line, `PairingLine.svelte`, sits on the stage across the
+   gap between the bag display and the phone. Jonathan chose this so that the
+   relay flash from `MOTION.md` is visible: the bag's alert appears, the line
+   turns solid red for the 200ms relay, then the phone's notification
+   arrives.
+6. Motion, from `MOTION.md`: both pairing lines draw themselves on once (the
+   stage line after the load reveal, the figure's line when the overlay
+   opens) and then drift. `MOTION.md` writes the drift with `linear` but also
+   bans `linear`; the drift uses `--e-draft`, which reads as a slow pulse.
 
 **Acceptance:** a reader who has never seen the project can tell where each
 part of the interface physically lives.
@@ -471,7 +498,8 @@ Collected from the phase markers above, in the order they come up:
    Resolved, see Phase 3
 3. ~~**His real club set**, or use a standard 18 (Phase 4)~~ Resolved, see
    Phase 4
-4. **Simulation pacing**, and whether to add a speed control (Phase 5)
+4. ~~**Simulation pacing**, and whether to add a speed control (Phase 5)~~
+   Resolved, see Phase 5
 5. **GitHub and write-up URLs** (Phase 8)
 
 Two more that are not blocking but improve the result if he answers early:

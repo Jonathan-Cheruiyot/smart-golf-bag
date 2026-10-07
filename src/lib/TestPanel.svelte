@@ -9,7 +9,21 @@
   // It is deliberately quiet, small muted type in a bar at the bottom,
   // because these controls are scaffolding for the demo and must not compete
   // with the two devices they drive.
-  let { clubs, distance, onPull, onReturn, onDistance, onReset } = $props();
+  //
+  // Play round runs the scripted simulation. While it plays, the manual
+  // sensors are disabled so a stray click cannot derail the story; the two
+  // devices stay live.
+  let {
+    clubs,
+    distance,
+    running,
+    onPull,
+    onReturn,
+    onDistance,
+    onReset,
+    onPlay,
+    onStop
+  } = $props();
 </script>
 
 <div class="panel">
@@ -20,6 +34,7 @@
         class="sensor"
         aria-label={club.name}
         aria-pressed={!club.inBag}
+        disabled={running}
         onclick={() => (club.inBag ? onPull(club.id) : onReturn(club.id))}
       >
         {club.short}
@@ -28,7 +43,7 @@
   </div>
 
   <div class="group">
-    <label class="caption" for="distance">Walk<br />away</label>
+    <label class="caption short" for="distance">Walk<br />away</label>
     <input
       id="distance"
       type="range"
@@ -36,12 +51,18 @@
       max="100"
       step="5"
       value={distance}
+      disabled={running}
       oninput={(event) => onDistance(Number(event.target.value))}
     />
     <output class="readout" for="distance">{distance} m</output>
   </div>
 
-  <button onclick={onReset}>Reset</button>
+  <div class="group">
+    <button class="play" onclick={running ? onStop : onPlay}>
+      {running ? "Stop" : "Play round"}
+    </button>
+    <button onclick={onReset} disabled={running}>Reset</button>
+  </div>
 </div>
 
 <style>
@@ -69,10 +90,19 @@
     color: var(--table-soft);
   }
 
+  .caption.short {
+    width: 48px;
+  }
+
+  /* Fixed width so the bar does not shift when the label changes to Stop. */
+  .play {
+    width: 112px;
+  }
+
   /* 44px tall so the thumb is a full-size target. The colour comes from the
      page's soft ink so the slider stays as quiet as the buttons. */
   input {
-    width: 144px;
+    width: 120px;
     height: 44px;
     margin: 0;
     accent-color: var(--table-soft);
@@ -80,7 +110,7 @@
   }
 
   .readout {
-    width: 48px;
+    width: 40px;
     font-family: var(--font-mono);
     font-size: 11px;
     font-variant-numeric: tabular-nums;
@@ -112,7 +142,7 @@
     text-transform: none;
   }
 
-  button:hover {
+  button:hover:not(:disabled) {
     background: var(--grid);
   }
 
@@ -124,7 +154,7 @@
     color: var(--table);
   }
 
-  button:active {
+  button:active:not(:disabled) {
     transform: translateY(1px);
     transition: none;
   }
@@ -133,5 +163,11 @@
   input:focus-visible {
     outline: 2px solid var(--flag);
     outline-offset: 2px;
+  }
+
+  button:disabled,
+  input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 </style>

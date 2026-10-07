@@ -101,9 +101,8 @@
     <p class="shot-count">{round.shots}</p>
   </section>
 
-  <section aria-labelledby="controls-heading">
-    <h3 id="controls-heading">Bag controls</h3>
-    <div class="controls">
+  <section>
+    <div class="controls" role="group" aria-label="Bag controls">
       <button onclick={onToggleRound}>
         {round.active ? "End" : "Start"}<br />round
       </button>
@@ -119,7 +118,9 @@
   .round {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    /* Tight on purpose: the tab has to hold three clubs out, both alerts and
+       the controls at once without scrolling. */
+    gap: var(--space-2);
   }
 
   .meta {
@@ -143,9 +144,9 @@
 
   .number {
     display: inline-block;
-    font-size: 56px;
+    font-size: 44px;
     font-weight: 600;
-    line-height: 64px;
+    line-height: 48px;
   }
 
   .of {
@@ -179,7 +180,7 @@
   }
 
   section {
-    padding-top: var(--space-3);
+    padding-top: var(--space-2);
     border-top: 1px solid var(--phone-rule);
   }
 
@@ -203,7 +204,7 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    padding: var(--space-2) 0 var(--space-2) var(--space-2);
+    padding: var(--space-1) 0 var(--space-1) var(--space-2);
     border-left: 2px solid var(--phone-rule);
     font-size: 14px;
     line-height: 20px;

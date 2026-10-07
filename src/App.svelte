@@ -15,8 +15,10 @@
   import WorkbenchOverlay from "./lib/WorkbenchOverlay.svelte";
   import BagGraphic from "./lib/BagGraphic.svelte";
   import BagDisplay from "./lib/BagDisplay.svelte";
+  import PairingLine from "./lib/PairingLine.svelte";
   import PhoneShell from "./lib/PhoneShell.svelte";
   import TestPanel from "./lib/TestPanel.svelte";
+  import SimProgress from "./lib/SimProgress.svelte";
 
   // ===== STATE =====
 
@@ -36,8 +38,8 @@
     };
   }
 
-  // The 18 clubs the golfer owns: a standard set, no brands. The rules allow
-  // 14 in the bag, so four start the day at home and the phone's Setup tab
+  // The 17 clubs the golfer owns: a standard set, no brands. The rules allow
+  // 14 in the bag, so three start the day at home and the phone's Setup tab
   // swaps them in, the way golfers trade a wood for a hybrid to suit a course.
   const LIMIT = 14;
 
@@ -57,7 +59,6 @@
     club("pw", "Pitching Wedge", "PW", "wedge"),
     club("gw", "Gap Wedge", "GW", "wedge"),
     club("sw", "Sand Wedge", "SW", "wedge"),
-    club("lw", "Lob Wedge", "LW", "wedge", false),
     club("w60", "60° Wedge", "60", "wedge", false),
     club("pt", "Putter", "PT", "putter")
   ]);
@@ -108,6 +109,10 @@
   // phone measures the distance itself and nothing is relayed.
   const RELAY_MS = 200;
 
+  // True for those 200ms, while the alert is "in the air" between the two
+  // devices. The pairing line on the stage flashes while it is.
+  let relaying = $state(false);
+
   $effect(() => {
     const wanted = [];
 
@@ -128,7 +133,8 @@
         kind: "left-behind",
         hole: leftBehind[0].pulledAtHole,
         title: `${leftBehind.length} clubs left behind`,
-        text: leftBehind.map((c) => `${c.name} (hole ${c.pulledAtHole})`).join(", ") + " are not in the bag."
+        // Names only: the clubs-out list below gives the hole for each.
+        text: "Not in the bag: " + leftBehind.map((c) => c.name).join(", ") + "."
       });
     }
 
@@ -166,8 +172,15 @@
       }
 
       if (relayed.length === 0) return;
-      const timer = setTimeout(() => phone.notifications.unshift(...relayed), RELAY_MS);
-      return () => clearTimeout(timer);
+      relaying = true;
+      const timer = setTimeout(() => {
+        phone.notifications.unshift(...relayed);
+        relaying = false;
+      }, RELAY_MS);
+      return () => {
+        clearTimeout(timer);
+        relaying = false;
+      };
     });
   });
 
@@ -256,7 +269,108 @@
     round.shots = 0;
     round.log = [];
     bag.distanceFromGolfer = 0;
+    sim.step = 0;
   }
+
+  // ===== ROUND SIMULATION =====
+
+  // A scripted nine-hole round that plays by itself, one step every 1.2
+  // seconds, so both devices can be watched telling the whole story. Every
+  // step calls the SAME functions the buttons and sensors call (toggleRound,
+  // pullClub, returnClub, nextHole, setDistance). There is no separate code
+  // path, so what the simulation shows is what the real interface does.
+  const STEP_MS = 1200;
+
+  const STANDARD_SET = ["dr", "w3", "w5", "h3", "i4", "i5", "i6", "i7", "i8", "i9", "pw", "gw", "sw", "pt"];
+
+  const SCRIPT = [
+    { caption: "Round starts on the 1st tee", run: () => toggleRound() },
+    { caption: "Driver out on 1", run: () => pullClub("dr") },
+    { caption: "Driver back in the bag", run: () => returnClub("dr") },
+    { caption: "Walk to hole 2", run: () => nextHole() },
+    { caption: "5 Iron out on 2", run: () => pullClub("i5") },
+    { caption: "5 Iron back in the bag", run: () => returnClub("i5") },
+    { caption: "Walk to hole 3", run: () => nextHole() },
+    { caption: "7 Iron out for the approach on 3", run: () => pullClub("i7") },
+    { caption: "Putter out on the green", run: () => pullClub("pt") },
+    { caption: "Putter back. The 7 Iron is still lying by the green", run: () => returnClub("pt") },
+    // The moment the project is about: nobody presses anything, the alert
+    // fires because the hole number moved past the hole the club was pulled on.
+    { caption: "Walk to hole 4 without it. The bag notices, then tells the phone", run: () => nextHole() },
+    { caption: "Plays on to hole 5. The alert stays up", run: () => nextHole() },
+    { caption: "Goes back for the 7 Iron and returns it. The alert clears", run: () => returnClub("i7") },
+    {
+      caption: "Skips ahead to hole 8",
+      run: () => {
+        nextHole();
+        nextHole();
+        nextHole();
+      }
+    },
+    { caption: "Sand Wedge out of the bunker on 8", run: () => pullClub("sw") },
+    { caption: "Walk to hole 9. The Sand Wedge is still in the bunker", run: () => nextHole() },
+    {
+      caption: "Pitching Wedge and Putter out on 9",
+      run: () => {
+        pullClub("pw");
+        pullClub("pt");
+      }
+    },
+    // The second alert, at the larger scale: the bag itself is left behind,
+    // and only the phone can say so.
+    { caption: "Walks to the clubhouse at the turn. The bag stays by the green", run: () => setDistance(60) },
+    { caption: "Walks back to the bag", run: () => setDistance(0) },
+    {
+      caption: "All three clubs returned",
+      run: () => {
+        returnClub("sw");
+        returnClub("pw");
+        returnClub("pt");
+      }
+    },
+    { caption: "Round ends after nine holes", run: () => toggleRound() }
+  ];
+
+  let sim = $state({
+    running: false,
+    step: 0 // how many steps have played
+  });
+
+  let simCaption = $derived(sim.step > 0 ? SCRIPT[sim.step - 1].caption : "");
+
+  // The interval's id. Not $state: nothing on screen depends on it.
+  let simTimer = null;
+
+  function simTick() {
+    SCRIPT[sim.step].run();
+    sim.step += 1;
+    if (sim.step >= SCRIPT.length) stopSim();
+  }
+
+  function playSim() {
+    if (sim.running) return;
+    // Put the stage back to a known start so the script always tells the
+    // same story: clubs in, the standard 14 loaded, alerts on, Round tab up.
+    resetBag();
+    for (const c of clubs) c.loaded = STANDARD_SET.includes(c.id);
+    bag.alertsOn = true;
+    phone.tab = "round";
+
+    sim.running = true;
+    simTick();
+    simTimer = setInterval(simTick, STEP_MS);
+  }
+
+  // Always clear the interval, whether the script finished or was stopped,
+  // or it would keep firing in the background.
+  function stopSim() {
+    clearInterval(simTimer);
+    simTimer = null;
+    sim.running = false;
+  }
+
+  // And clear it if the page itself goes away mid-run.
+  $effect(() => () => clearInterval(simTimer));
 </script>
 
 <main>
@@ -310,6 +424,10 @@
       </div>
     </div>
 
+    <div class="pair-col">
+      <PairingLine paired={phone.paired} {relaying} />
+    </div>
+
     <div class="phone-col">
       <WorkbenchLabel label="Phone" note="paired device" />
       <div class="reveal" style="--reveal-step: 2">
@@ -336,6 +454,12 @@
 
   <!-- ================= BOTTOM BAR: TESTING UI ================= -->
   <section class="testbar reveal" style="--reveal-step: 3" aria-label="Test panel">
+    <SimProgress
+      running={sim.running}
+      step={sim.step}
+      total={SCRIPT.length}
+      caption={simCaption}
+    />
     <h2 class="testbar-label">
       Test panel
       <span class="testbar-note">simulated sensors</span>
@@ -343,10 +467,13 @@
     <TestPanel
       clubs={loadedClubs}
       distance={bag.distanceFromGolfer}
+      running={sim.running}
       onPull={pullClub}
       onReturn={returnClub}
       onDistance={setDistance}
       onReset={resetBag}
+      onPlay={playSim}
+      onStop={stopSim}
     />
   </section>
 </main>
@@ -371,6 +498,11 @@
       The Walk away slider is how far you are from the bag. Move it past 30
       metres during a round and the phone warns you that you left the bag
       itself. The bag shows nothing, because nobody is there to read it.
+    </p>
+    <p>
+      Play round runs a scripted nine-hole round by itself, one step every
+      1.2 seconds, with a caption above the bar saying what the golfer just
+      did. It shows both alerts. Stop halts it where it is.
     </p>
     <p>Reset puts every club back, ends the round and walks you back to the bag.</p>
   </div>
@@ -462,12 +594,19 @@
   .stage {
     display: flex;
     justify-content: center;
-    gap: 96px;
     padding: var(--space-5) 0;
   }
 
   .bag-col {
     width: 480px;
+  }
+
+  /* The 96px gap between the devices, with the pairing line across it at
+     the height of the bag's club count, so the line appears to leave the
+     bag from the number the phone mirrors. */
+  .pair-col {
+    width: 96px;
+    padding-top: 144px;
   }
 
   /* 300 by 620 is the phone body size fixed in the spec. */
@@ -478,16 +617,18 @@
   /* Quieter than everything above it: smaller type and the soft ink, because
      these controls are scaffolding for the demo, not part of the product. */
   .testbar {
+    /* Anchors the simulation readout, which is drawn over the top rule. */
+    position: relative;
     display: flex;
     align-items: center;
-    gap: var(--space-5);
+    gap: var(--space-4);
     padding-top: var(--space-3);
     border-top: 1px solid var(--table-soft);
   }
 
   .testbar-label {
     flex-shrink: 0;
-    width: 144px;
+    width: 136px;
     margin: 0;
     font-family: var(--font-mono);
     font-size: 11px;

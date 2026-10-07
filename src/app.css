@@ -138,6 +138,45 @@ body {
   }
 }
 
+/* The pairing line, global because the stage and the placement figure both
+   draw one. It is the single ambient animation in the project and it earns
+   its place by showing state: the bag and phone are connected.
+
+   pair-draw is a solid line inside an SVG mask that grows once, which draws
+   the dashed line on. An SVG mask shows whatever is painted white, so that
+   white is a mask value and not a colour anyone sees.
+
+   The drift moves the dashes by exactly one dash-and-gap (8px), so each loop
+   starts where the last one ended. It uses the page's calm easing, so the
+   line advances in a slow pulse and not a constant crawl. */
+.pair-line {
+  fill: none;
+  stroke: var(--table-ink);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+  animation: pair-drift var(--t-ambient) var(--e-draft) infinite;
+}
+
+.pair-draw {
+  fill: none;
+  stroke: white;
+  stroke-dasharray: 1;
+  animation: pair-draw var(--t-slow) var(--e-draft) both;
+}
+
+@keyframes pair-drift {
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+
+@keyframes pair-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
 /* Reduced motion is an accessibility requirement, not a courtesy: some users
    get motion sickness from animation. */
 @media (prefers-reduced-motion: reduce) {

@@ -211,7 +211,7 @@
     display: flex;
     gap: var(--space-2);
     margin: 0 var(--space-3) var(--space-1);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
     border: 2px solid var(--flag);
     border-radius: 4px;
     background: var(--flag);
@@ -236,7 +236,7 @@
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 600;
-    line-height: 20px;
+    line-height: 16px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -256,7 +256,7 @@
   .tab-body {
     grid-area: 1 / 1;
     min-height: 0;
-    padding: var(--space-4);
+    padding: var(--space-3) var(--space-4);
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--phone-rule) var(--oled);
