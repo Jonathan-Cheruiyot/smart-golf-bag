@@ -14,6 +14,7 @@
   import WorkbenchLabel from "./lib/WorkbenchLabel.svelte";
   import WorkbenchOverlay from "./lib/WorkbenchOverlay.svelte";
   import BagGraphic from "./lib/BagGraphic.svelte";
+  import BagMount from "./lib/BagMount.svelte";
   import BagDisplay from "./lib/BagDisplay.svelte";
   import PairingLine from "./lib/PairingLine.svelte";
   import PhoneShell from "./lib/PhoneShell.svelte";
@@ -410,17 +411,22 @@
     <div class="bag-col">
       <WorkbenchLabel label="Bag display" note="side pocket" />
       <div class="reveal" style="--reveal-step: 1">
-        <BagDisplay
-          clubs={loadedClubs}
+        <BagMount
           {round}
           alertsOn={bag.alertsOn}
-          {inBagCount}
-          {clubsOut}
-          {leftBehind}
           onToggleRound={toggleRound}
           onNextHole={nextHole}
           onToggleAlerts={toggleAlerts}
-        />
+        >
+          <BagDisplay
+            clubs={loadedClubs}
+            {round}
+            alertsOn={bag.alertsOn}
+            {inBagCount}
+            {clubsOut}
+            {leftBehind}
+          />
+        </BagMount>
       </div>
     </div>
 
@@ -485,26 +491,54 @@
 >
   <div class="info-text">
     <p>
-      The bar along the bottom stands in for the bag's sensors. Each club
-      button is one slot in the top of the bag: press it to lift that club
-      out, press it again to put it back.
+      This page is a mock-up of a golf bag that knows which clubs are in it,
+      and a phone app that knows where the bag is. Nothing here is a real
+      sensor. The bar along the bottom of the page stands in for the
+      hardware, and everything on the two devices reacts to it.
     </p>
+
+    <h3>Test controls</h3>
+    <dl>
+      <dt>Club buttons (DR, 3W, 7i and so on)</dt>
+      <dd>
+        Each one is the sensor in one slot at the top of the bag. Press it to
+        lift that club out; press it again to put it back. A filled button
+        means the club is out.
+      </dd>
+      <dt>Walk away</dt>
+      <dd>
+        How far you are from the bag, in metres. Past 30 metres during a
+        round, the phone warns that you have left the bag itself. The bag
+        shows nothing, because nobody is there to read it.
+      </dd>
+      <dt>Play round</dt>
+      <dd>
+        Plays a scripted nine-hole round by itself, one step every 1.2
+        seconds, with a caption above the bar saying what the golfer just
+        did. It shows both alerts. While it plays the button reads Stop, and
+        the other test controls are switched off.
+      </dd>
+      <dt>Reset</dt>
+      <dd>
+        Puts every club back, ends the round, clears the round's history and
+        walks you back to the bag.
+      </dd>
+    </dl>
+
+    <h3>To see the main feature by hand</h3>
     <p>
-      To see the main feature, press Start Round on the bag display, lift the
-      7 Iron, then press Next Hole without returning it. The bag flags the
-      club you walked away from and names the hole you left it on.
+      Press the Start Round key under the bag's screen, lift the 7 Iron, then
+      press Next Hole on the strap without returning it. The bag flags the
+      club you walked away from and names the hole you left it on, and a
+      moment later the phone is told.
     </p>
+
+    <h3>On the devices</h3>
     <p>
-      The Walk away slider is how far you are from the bag. Move it past 30
-      metres during a round and the phone warns you that you left the bag
-      itself. The bag shows nothing, because nobody is there to read it.
+      The bag has three physical keys: Start or End Round, Next Hole, and
+      Alerts. The phone's Round tab repeats them. Its Setup tab chooses
+      today's 14 clubs, and its Summary tab shows the round's shots.
     </p>
-    <p>
-      Play round runs a scripted nine-hole round by itself, one step every
-      1.2 seconds, with a caption above the bar saying what the golfer just
-      did. It shows both alerts. Stop halts it where it is.
-    </p>
-    <p>Reset puts every club back, ends the round and walks you back to the bag.</p>
   </div>
 </WorkbenchOverlay>
 
@@ -597,8 +631,10 @@
     padding: var(--space-5) 0;
   }
 
+  /* The mount is the same 640px height as the phone, so the two devices
+     stand level on the table. */
   .bag-col {
-    width: 480px;
+    width: 576px;
   }
 
   /* The 96px gap between the devices, with the pairing line across it at
@@ -606,12 +642,12 @@
      bag from the number the phone mirrors. */
   .pair-col {
     width: 96px;
-    padding-top: 144px;
+    padding-top: 212px;
   }
 
-  /* 300 by 620 is the phone body size fixed in the spec. */
+  /* 296 by 640, close to the 19.5:9 of a current phone. */
   .phone-col {
-    width: 300px;
+    width: 296px;
   }
 
   /* Quieter than everything above it: smaller type and the soft ink, because
@@ -646,16 +682,35 @@
   }
 
   .info-text {
-    max-width: 480px;
+    max-width: 520px;
     font-size: 14px;
     line-height: 20px;
   }
 
-  .info-text p {
+  .info-text p,
+  .info-text dl {
     margin: 0 0 var(--space-3);
   }
 
   .info-text p:last-child {
     margin: 0;
+  }
+
+  .info-text h3 {
+    margin: var(--space-4) 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .info-text dt {
+    font-weight: 600;
+  }
+
+  .info-text dd {
+    margin: 0 0 var(--space-2);
+    color: var(--table-soft);
   }
 </style>

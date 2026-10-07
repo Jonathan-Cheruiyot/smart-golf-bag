@@ -6,8 +6,11 @@
   //
   // Reading order, top to bottom, is the order of urgency at a glance:
   // where am I (hole), is everything here (the count), what is wrong (the
-  // message), which one (the rack). The controls sit last because they are
-  // pressed, not read.
+  // message), which one (the rack).
+  //
+  // The screen holds indicators only. The three controls are physical keys
+  // in the mount around it (see BagMount), because e-ink touch is slow,
+  // golfers wear gloves, and the bag is used in the rain.
   //
   // Motion: everything changes in one frame, as e-ink does. The only effect
   // is the refresh flash on the count, which inverts for 90ms when the number
@@ -21,10 +24,7 @@
     alertsOn,
     inBagCount,
     clubsOut,
-    leftBehind,
-    onToggleRound,
-    onNextHole,
-    onToggleAlerts
+    leftBehind
   } = $props();
 
   // Two digits always, so the header does not shift between hole 9 and 10.
@@ -95,22 +95,13 @@
 
     <ClubRack {clubs} hole={round.hole} />
 
-    <div class="controls">
-      <button onclick={onToggleRound}>
-        {round.active ? "End Round" : "Start Round"}
-      </button>
-      <button onclick={onNextHole} disabled={!round.active}>Next Hole</button>
-      <button aria-pressed={alertsOn} onclick={onToggleAlerts}>
-        Alerts {alertsOn ? "On" : "Off"}
-      </button>
-    </div>
   </div>
 </div>
 
 <style>
   .bezel {
     padding: var(--space-4);
-    border-radius: 16px;
+    border-radius: 10px;
     background: var(--bezel);
   }
 
@@ -186,7 +177,7 @@
     background: var(--paper-sunk);
     font-size: 14px;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
   }
@@ -207,50 +198,4 @@
     }
   }
 
-  .controls {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-2);
-  }
-
-  /* 56px tall: comfortably over the 44px minimum for a gloved hand. */
-  button {
-    height: 56px;
-    padding: 0;
-    border: 1px solid var(--ink);
-    border-radius: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-  }
-
-  /* No transitions: e-ink has no in-between frames. Hover is a tone change
-     and a press inverts, both instantly. */
-  button:hover:not(:disabled) {
-    background: var(--paper-sunk);
-  }
-
-  button:active:not(:disabled) {
-    background: var(--ink);
-    color: var(--paper);
-  }
-
-  /* Ink, not red: on this screen red is reserved for alerts. */
-  button:focus-visible {
-    outline: 2px solid var(--ink);
-    outline-offset: 2px;
-  }
-
-  /* Dashed and soft instead of faded, because e-ink has no half-opacity. */
-  button:disabled {
-    border-style: dashed;
-    border-color: var(--ink-soft);
-    color: var(--ink-soft);
-    cursor: not-allowed;
-  }
 </style>

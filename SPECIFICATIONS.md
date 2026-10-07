@@ -64,8 +64,10 @@ allowance.
 App.svelte                  owns ALL state, renders header strip, stage, test bar
 ├── WorkbenchLabel.svelte    small annotation label used around the page
 ├── WorkbenchOverlay.svelte  dialog sheet for the placement figure and the info text
-├── BagDisplay.svelte        the e-ink panel (Level 1)
-│   └── ClubRack.svelte      the 14-slot grid
+├── BagMount.svelte          the pocket panel the display is set into, drawn
+│   │                        as a product illustration, with the three keys
+│   └── BagDisplay.svelte    the e-ink panel (Level 1), indicators only
+│       └── ClubRack.svelte  the 14-slot grid
 ├── PhoneShell.svelte        phone body, status bar, tab switching
 │   ├── PhoneRound.svelte    live round view, mirrors bag state
 │   ├── PhoneSetup.svelte    choose which 14 clubs are loaded
@@ -259,10 +261,24 @@ legible as a photocopy, with no color carrying meaning alone.
 **Goal.** The second device exists and mirrors the bag.
 
 **Do:**
-1. `PhoneShell.svelte`: 300 by 620, `--oled`, 36px corner radius, a thin
-   `--phone-rule` bezel. A minimal status strip with a clock and a pairing
-   indicator. **No fake iOS status bar with battery and signal icons**, which
-   reads as a stock template.
+1. `PhoneShell.svelte`: 296 by 640 (close to 19.5:9), drawn as a solid
+   generic smartphone at the same fidelity as the bag mount. Revised in
+   Phase 7; the original 300 by 620 outline with a minimal status strip is
+   superseded.
+   - Housing in flat tone steps, outside in: a `--phone-rule` metal edge
+     band, a light chamfer hairline, the dark channel the glass sits in, a
+     thin uniform `--oled-raised` bezel, then the `--oled` screen. No
+     gradients, no gloss.
+   - Concentric corners: each layer's radius is the screen's 30px plus the
+     thickness outside it (40, 36, 34, 30).
+   - Side keys that break the silhouette (volume up and down on the left, a
+     longer key on the right), a hatched earpiece slot, a centred circular
+     camera, and a light gesture bar at the bottom of the screen.
+   - **The status bar is generic and drawn in our own palette**: the clock
+     and the bag pairing indicator on the left, signal, wifi and battery on
+     the right as inline stroke SVG. No one maker's design language: no
+     branded cutout, typeface, control styling or accent colour. The app
+     inside stays in the project's own design language.
 2. Three tabs along the bottom: Round, Setup, Summary. Mono labels, a 2px
    `--flag` rule under the active one.
 3. `PhoneRound.svelte` first: mirrors the bag's club count and alert, and adds
@@ -425,16 +441,44 @@ part of the interface physically lives.
 
 **Do:**
 1. `PhoneSummary.svelte`: post-round stats from `round.log`, drawn as
-   hand-written inline SVG. Shots per hole as a small column chart in `--ink`
-   on the phone's dark ground, plus most-used club and total shots. No chart
-   library.
+   hand-written inline SVG. Shots per hole as a small column chart in
+   `--phone-text` on the phone's dark ground (the spec first said `--ink`,
+   which is near-black and would be invisible there), plus total shots,
+   most-used club, and a list of clubs used with the holes each was used on.
+   No chart library. With nothing logged it says so; it never shows invented
+   numbers.
 2. Accessibility pass against the checklist in `CLAUDE.md`. Specifically
    verify `--ink-soft` on `--paper` and `--phone-soft` on `--oled` meet
    contrast, and darken them if not.
 3. Keyboard pass: Tab through every control in order, confirm visible focus
    rings that are not the browser default blue.
 4. Fill in the Info button content so it explains every test control.
-5. Remove dead code and any leftover template files.
+5. Remove dead code and any leftover template files. Done:
+   `ClubTracker.svelte`, the first prototype's panel, is deleted.
+
+6. **Addition: the bag display is mounted in the bag.** `BagMount.svelte`
+   draws the side pocket around the display as a technical product
+   illustration, in the manner of a patent drawing: 576 by 620, the same
+   height as the phone.
+   - Depth from four flat tones only: `--paper-sunk` for the bag wall,
+     `--paper` for the pocket panel and strap sewn onto it, `--ink-soft` for
+     recesses, `--bezel` for the display housing. No gradients, shadows,
+     bitmap textures or fabric grain.
+   - The display drops into a channel with a heavier shadow line on its top
+     and left edges. Stitches are dashed hairlines along the seams, the
+     zipper is a regular hatch, the strap has a box stitch and a rivet at
+     each end, and parting lines mark where parts meet.
+   - **The three controls move off the e-ink screen** and become physical
+     keys in the mount: Start/End Round below the screen, Next Hole and
+     Alerts on the strap edge. Each is a real `<button>` drawn as a cap
+     sitting 4px above a base, which travels 1px down on `:active`. The
+     reason, to repeat out loud: e-ink touch is slow, golfers wear gloves,
+     and the bag is used in rain. This supersedes item 2 of Phase 2, which
+     put the controls on the screen.
+   - The e-ink screen then holds only indicators: hole, round state, club
+     count, message line, club rack.
+   - Fig. 1 has six callouts to match: display, round key, strap edge keys,
+     top cuff, base, phone.
 
 **Acceptance:** the page can be operated entirely by keyboard, and every
 control has a visible focus state.

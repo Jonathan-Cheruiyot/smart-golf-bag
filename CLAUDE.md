@@ -40,6 +40,12 @@ user's full attention. It carries everything that takes more than a glance:
 configuration, history, and remote alerts. Dark ground, fine type, denser
 information.
 
+The phone is drawn as a generic modern smartphone, a solid object at the
+same fidelity as the bag mount. Its status bar should be generic and drawn
+in our own palette: clock, signal, wifi and battery as inline stroke SVG,
+plus the bag pairing indicator. Do not copy any one maker's design language
+(no branded cutout, typeface, control styling or accent colour).
+
 ### The rule that keeps them honest
 
 **Nothing that requires more than a two-second glance may appear on the bag

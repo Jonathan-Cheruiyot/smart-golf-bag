@@ -4,11 +4,11 @@
   // hairline ink strokes, no fills except the screen, numbered callouts in
   // red with leader lines.
   //
-  // The five callouts are the argument that the interface is not one flat
-  // surface: screen on the side pocket, buttons on the strap, sensors in the
-  // top cuff, a stand sensor in the base, and the phone beside the bag,
-  // joined to it by a dashed pairing line. That line is the two-device idea
-  // in one stroke.
+  // The six callouts are the argument that the interface is not one flat
+  // surface: screen in the side pocket, a key below it, two more on the
+  // strap, sensors in the top cuff, a stand sensor in the base, and the phone
+  // beside the bag, joined to it by a dashed pairing line. That line is the
+  // two-device idea in one stroke.
   //
   // `compact` is the small figure in the header strip: the bag alone, with
   // the fine detail left out so it stays legible at 27 by 48. The button
@@ -24,29 +24,35 @@
     {
       n: 1,
       title: "Side pocket display",
-      text: "The e-ink screen. Angled up so it reads while the bag stands on its legs.",
+      text: "The e-ink screen, set into the pocket panel. Indicators only: hole, round state, club count, message, club rack.",
       cx: 40, cy: 230, x1: 55, y1: 240, x2: 128, y2: 282
     },
     {
       n: 2,
-      title: "Strap buttons",
-      text: "Start or End Round, Next Hole and Alerts. Raised so they work by feel with the bag on your shoulder.",
-      cx: 392, cy: 250, x1: 378, y1: 260, x2: 320, y2: 288
+      title: "Round key",
+      text: "Start or End Round. A physical key below the screen, because e-ink touch is slow, golfers wear gloves, and the bag is used in rain.",
+      cx: 40, cy: 440, x1: 56, y1: 432, x2: 152, y2: 394
     },
     {
       n: 3,
+      title: "Strap edge keys",
+      text: "Next Hole and Alerts. Raised so they work by feel with the bag on your shoulder.",
+      cx: 392, cy: 250, x1: 378, y1: 260, x2: 320, y2: 304
+    },
+    {
+      n: 4,
       title: "Top cuff sensors and slot lights",
       text: "Each divider senses its club. A light under an empty slot turns red.",
       cx: 312, cy: 86, x1: 298, y1: 94, x2: 262, y2: 116
     },
     {
-      n: 4,
+      n: 5,
       title: "Base stand sensor",
       text: "Detects when the bag is set down, so the screen wakes when it can be seen.",
       cx: 312, cy: 612, x1: 298, y1: 604, x2: 252, y2: 576
     },
     {
-      n: 5,
+      n: 6,
       title: "Phone, paired",
       text: "Travels with the golfer. Carries setup, history, and the alert for when the bag itself is left behind.",
       cx: 478, cy: 224, x1: 478, y1: 242, x2: 478, y2: 270
@@ -63,7 +69,7 @@
     aria-hidden={compact}
     aria-label={compact
       ? undefined
-      : "Golf bag with four numbered interface zones, and the paired phone beside it"}
+      : "Golf bag with five numbered interface zones, and the paired phone beside it"}
   >
     <g class="ink">
       <!-- legs, starting at the body's edge so no line shows through it -->
@@ -96,10 +102,10 @@
           <circle cx={x} cy="128" r="5" />
         {/each}
 
-        <!-- the three strap buttons -->
-        <circle cx="310" cy="292" r="8" />
-        <circle cx="313" cy="328" r="8" />
-        <circle cx="310" cy="364" r="8" />
+        <!-- the two keys on the strap edge, and the round key below the screen -->
+        <circle cx="312" cy="310" r="8" />
+        <circle cx="312" cy="346" r="8" />
+        <rect x="154" y="384" width="52" height="14" rx="3" />
 
         <!-- the phone, drawn as an outline beside the bag -->
         <rect x="440" y="270" width="76" height="150" rx="10" />

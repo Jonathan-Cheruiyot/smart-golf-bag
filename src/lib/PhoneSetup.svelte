@@ -91,8 +91,8 @@
   }
 
   .reason {
-    margin: var(--space-2) 0 0;
-    padding: var(--space-2) var(--space-3);
+    margin: var(--space-1) 0 0;
+    padding: var(--space-1) var(--space-3);
     border-left: 2px solid var(--flag);
     background: var(--oled-raised);
     font-size: 13px;
@@ -104,7 +104,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: var(--space-2);
-    margin: var(--space-2) 0 0;
+    margin: var(--space-1) 0 0;
     padding: 0;
     list-style: none;
   }
