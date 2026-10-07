@@ -1,0 +1,157 @@
+/* Global page styles and design tokens. Component-specific styles live in
+   each .svelte file and read these custom properties, so no component ever
+   hardcodes a hex value. The three groups are deliberately separate palettes:
+   the bag is a printed instrument, the phone is a screen, and the page is the
+   drafting table both sit on. */
+:root {
+  /* Bag display (e-ink): readable in direct sun, no glow, one alarm red. */
+  --paper: #E6E2D7;        /* panel ground */
+  --paper-sunk: #DAD5C7;   /* inset areas, rules */
+  --ink: #15171A;          /* primary text, numerals */
+  --ink-soft: #6E6A5F;     /* labels, secondary */
+  --bezel: #2A2B28;        /* the physical housing around the screen */
+
+  /* Phone (OLED): held close with full attention, so dark and denser. */
+  --oled: #0A0B0C;
+  --oled-raised: #16181A;
+  --phone-text: #F2F0EA;
+  --phone-soft: #8A8578;
+  --phone-rule: #26282A;
+  --fairway: #4F8A5B;      /* confirmations only, used sparingly */
+
+  /* Shared by both devices: the same red marks them as one product family.
+     Alerts ONLY. */
+  --flag: #B23A2E;
+
+  /* Page (the drafting-table harness around both devices). */
+  --table: #F2EFE7;
+  --grid: #E2DCCD;         /* hairline graph rule, 1px, very low contrast */
+  --table-ink: #1A1C1E;
+  --table-soft: #6B675C;
+
+  /* Type: one family, three registers. Mono for device chrome and numerals
+     (tabular figures stop the club count jittering), Sans for phone body and
+     page UI, Serif for page headings only. */
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-serif: 'IBM Plex Serif', serif;
+
+  /* Spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Motion: see MOTION.md. Motion expresses material, so there is no single
+     house easing. The bag (e-ink) uses --t-instant/--t-flash with --e-snap,
+     the phone (OLED) uses --t-quick/--t-base with --e-enter/--e-exit/
+     --e-settle, and the page uses --t-slow with --e-draft, once, on load. */
+  /* Durations */
+  --t-instant: 0ms;        /* e-ink state change, no tween */
+  --t-flash: 90ms;         /* e-ink refresh flash */
+  --t-quick: 140ms;        /* phone taps, hovers, focus */
+  --t-base: 240ms;         /* phone panel changes */
+  --t-slow: 420ms;         /* page reveals, pairing line */
+  --t-ambient: 1200ms;     /* background, never blocks input */
+
+  /* Easings. Named for what they feel like, not the curve. */
+  --e-snap: steps(2, end);                      /* e-ink */
+  --e-exit: cubic-bezier(0.4, 0.0, 1, 1);       /* leaving, accelerate out */
+  --e-enter: cubic-bezier(0.0, 0.0, 0.2, 1);    /* arriving, decelerate in */
+  --e-settle: cubic-bezier(0.2, 0.9, 0.3, 1);   /* phone, slight overshoot */
+  --e-draft: cubic-bezier(0.65, 0, 0.35, 1);    /* page, symmetrical, calm */
+
+  font-family: var(--font-sans);
+  color: var(--table-ink);
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: var(--table);
+  /* Graph-paper grid, 24px squares. Each layer is a hard-stopped 1px line
+     with no visible blend, which is the only way to draw a repeating
+     hairline in CSS while still reading the colour from --grid. It is a
+     drafting surface, not a feature, so it stays barely visible. */
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* The one button style of the page harness, global because the header strip
+   and the overlay both use it. Square and hairline-ruled like the rest of the
+   drawing sheet, mono label, 44px minimum for a gloved hand. */
+.harness-btn {
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--table-ink);
+  border-radius: 0;
+  background: var(--table);
+  color: var(--table-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color var(--t-quick) var(--e-enter);
+}
+
+/* Hover is a tone shift, never a size change, so neighbours do not move. */
+.harness-btn:hover {
+  background: var(--grid);
+}
+
+/* Press feedback is instant: nothing physical lags between touch and
+   response. */
+.harness-btn:active {
+  transform: translateY(1px);
+  transition: none;
+}
+
+.harness-btn:focus-visible {
+  outline: 2px solid var(--flag);
+  outline-offset: 2px;
+}
+
+/* The staged page reveal: the one load animation in the project. Each piece
+   of the harness fades in with a 6px rise, 80ms after the one before it
+   (labels, bag, phone, and so on), so the first impression reads as composed.
+   It runs once and the page is then still. It is global because both
+   App.svelte and WorkbenchLabel.svelte use it. Set --reveal-step on the
+   element to choose its place in the sequence. */
+.reveal {
+  animation: reveal var(--t-slow) var(--e-draft) both;
+  animation-delay: calc(var(--reveal-step, 0) * 80ms);
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion is an accessibility requirement, not a courtesy: some users
+   get motion sickness from animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The block above shortens the reveal but keeps its stagger delay, which
+     would leave the page blank for a moment. Drop it entirely instead. */
+  .reveal {
+    animation: none;
+  }
+}
