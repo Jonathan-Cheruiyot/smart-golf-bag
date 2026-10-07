@@ -60,7 +60,8 @@ In VS Code, use File > Open Folder and pick `C:\Users\cheru\dev\golf-bag`.
 Then:
 
 1. Put `App.svelte` in `src/`, replacing the one already there.
-2. Put `ClubTracker.svelte` and `BagGraphic.svelte` in `src/lib/`.
+2. Put every component file (`BagMount.svelte`, `BagDisplay.svelte`,
+   `PhoneShell.svelte` and the rest listed in section 3) in `src/lib/`.
 3. Put `app.css` in `src/`, replacing the one already there.
 4. Delete `src/lib/Counter.svelte`.
 
@@ -70,11 +71,11 @@ it, run it again.
 ### Two things that commonly go wrong
 
 **Downloaded files get renamed.** If your browser saved them as
-`App (1).svelte`, rename them to exactly `App.svelte` and
-`ClubTracker.svelte`, or the imports will fail.
+`App (1).svelte`, rename them to exactly `App.svelte`,
+`BagDisplay.svelte` and so on, or the imports will fail.
 
-**Wrong folder.** `ClubTracker.svelte` and `BagGraphic.svelte` must be in
-`src/lib`, not `src`, because `App.svelte` imports them from `./lib/`.
+**Wrong folder.** The component files must be in `src/lib`, not `src`,
+because `App.svelte` imports them from `./lib/`.
 
 ### Avoid OneDrive
 
@@ -101,8 +102,19 @@ golf-bag/
 │   ├── app.css             Global page styles.
 │   ├── App.svelte          Root component. Holds ALL state and both regions.
 │   └── lib/
-│       ├── ClubTracker.svelte   The device panel (Level 1).
-│       └── BagGraphic.svelte    Placement drawing (Level 0 requirement).
+│       ├── BagMount.svelte       The bag's pocket and its three keys.
+│       ├── BagDisplay.svelte     The e-ink screen (Level 1).
+│       ├── ClubRack.svelte       The grid of club slots on that screen.
+│       ├── PhoneShell.svelte     The phone body, status bar and tabs.
+│       ├── PhoneRound.svelte     Phone tab: the live round.
+│       ├── PhoneSetup.svelte     Phone tab: choose today's 14 clubs.
+│       ├── PhoneSummary.svelte   Phone tab: shots chart and clubs used.
+│       ├── PairingLine.svelte    The dashed line between the devices.
+│       ├── TestPanel.svelte      The simulated sensors in the bottom bar.
+│       ├── SimProgress.svelte    Simulation progress bar and caption.
+│       ├── BagGraphic.svelte     Placement drawing (Level 0 requirement).
+│       ├── WorkbenchLabel.svelte   The small labels above each device.
+│       └── WorkbenchOverlay.svelte The pop-up sheet for Info and Fig. 1.
 └── GUIDE.md                This file.
 ```
 
@@ -158,20 +170,21 @@ let clubsOut = $derived(clubs.filter((c) => !c.inBag));
 
 ### Passing functions down
 
-`ClubTracker.svelte` has buttons but does not own the data they change. So
-`App.svelte` passes functions down as props, and the child calls them:
+`BagMount.svelte` has the bag's buttons but does not own the data they
+change. So `App.svelte` passes functions down as props, and the child calls
+them (shortened here to the one button):
 
 ```svelte
 <!-- In App.svelte -->
-<ClubTracker {clubs} {hole} onNextHole={nextHole} />
+<BagMount {round} onNextHole={nextHole} />
 ```
 
 ```svelte
-<!-- In ClubTracker.svelte -->
+<!-- In BagMount.svelte -->
 <button onclick={onNextHole}>Next Hole</button>
 ```
 
-`{clubs}` is shorthand for `clubs={clubs}`.
+`{round}` is shorthand for `round={round}`.
 
 ### The left-behind logic
 
@@ -387,9 +400,9 @@ graphic and explain the four surfaces. Close with what you would build next.
 **Page is blank, or a red error overlay appears.** Read the message in the
 terminal where `npm run dev` is running. It usually names the file and line.
 
-**"Failed to resolve import ./lib/ClubTracker.svelte"** The file is in the
-wrong folder or has the wrong name. It must be exactly
-`src/lib/ClubTracker.svelte`.
+**"Failed to resolve import ./lib/BagDisplay.svelte"** (or any other
+component) The file is in the wrong folder or has the wrong name. It must be
+exactly `src/lib/BagDisplay.svelte`.
 
 **npm install hangs for many minutes.** The project is probably inside
 OneDrive. Move it somewhere else and run `npm install` again.

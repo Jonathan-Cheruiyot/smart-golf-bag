@@ -21,11 +21,13 @@ has been made digital and smart. Implemented in Svelte and JavaScript.
 **The one hard constraint on object choice:** the interactive controls and
 display cannot all be on one flat surface.
 
-> **How the golf bag satisfies this:** the display is on the side pocket, the
-> buttons are on the shoulder strap, the club sensors and slot lights are in
-> the top cuff, and a stand sensor is in the base. Four distinct surfaces.
-> `BagGraphic.svelte` is the drawing that shows this, and it should be called
-> out explicitly in the write-up and the presentation.
+> **How the golf bag satisfies this:** the display is set into the side
+> pocket with the Start/End Round key below it, the Next Hole and Alerts keys
+> are on the strap edge, the club sensors and slot lights are in the top
+> cuff, and a stand sensor is in the base. Four distinct surfaces on the bag,
+> plus the paired phone. `BagGraphic.svelte` (Fig. 1 on the page) is the
+> drawing that shows this, with six numbered callouts, and it should be
+> called out explicitly in the write-up and the presentation.
 
 ---
 
@@ -115,7 +117,7 @@ A written list pairing each user need with the design requirement it creates.
 - [ ] **[todo]** Hybrid sketch showing the interface on a real object (1)
 
 > **Shortcut for the hybrid sketch:** photograph a real golf bag and draw the
-> four zones from `BagGraphic.svelte` on top of the photo.
+> five bag zones from `BagGraphic.svelte` on top of the photo.
 >
 > **Shortcut for the storyboard:** the four panel states already in the code
 > are the plot. Golfer pulls a club, walks to the next tee, bag alerts, club
@@ -144,16 +146,21 @@ buttons to test usage of the mock object.
 
 Required elements:
 
+- [x] **[done]** Two regions: the two devices on the centre stage, and the
+      project info (header strip) and testing controls (bottom bar)
 - [x] **[done]** Project title
 - [x] **[done]** Your name
 - [ ] **[partial]** Link to the project write-up (placeholder `href="#writeup"`
-      in `App.svelte`, needs the real URL)
+      in `App.svelte`, needs the real URL once the write-up is live)
 - [x] **[done]** Graphic showing where the UI resides on the physical object
-      (`BagGraphic.svelte`)
+      (`BagGraphic.svelte`: the Fig. 1 button in the header, which opens the
+      full drawing with six callouts)
 - [x] **[done]** Info button explaining the simulation controls
-- [x] **[done]** Buttons that simulate use (Pull club, Return, Advance a hole,
-      Reset bag)
-- [x] **[done]** Space reserved for future goals (the dashed box)
+- [x] **[done]** Buttons that simulate use (one sensor button per club to lift
+      or return it, a Walk away distance slider, Play round, Reset)
+- [x] **[done]** Space reserved for future goals. It was reserved in the
+      first layout and has since been filled by the Level 2 features (the
+      phone and the simulation), so there is no empty box on the page now
 
 Note: the UI does not need to be responsive. A fixed size is fine, since a
 real smart object has a fixed display.
@@ -163,25 +170,33 @@ real smart object has a fixed display.
 Focus on basic controls and usage. Produce a list of the controls, the
 indicators, and how they connect to the design goals.
 
-- [x] **[done]** Implemented in `ClubTracker.svelte`
+- [x] **[done]** Implemented in `BagMount.svelte` (the three physical keys),
+      `BagDisplay.svelte` (the e-ink screen) and `ClubRack.svelte`
 - [x] **[done]** Controls and indicators list (below, reuse in the write-up)
 
 **Controls**
 
 | Control | What it does | Design goal it serves |
 |---|---|---|
-| Start / End Round | Begins tracking, resets hole and shot count | The bag should not nag during practice or in the trunk |
-| Next Hole | Advances the hole, which triggers the left-behind check | The golfer decides when a hole is over, not the bag |
-| Alerts On / Off | Silences the warning | Users need to mute alerts at the range |
+| Start / End Round (key below the screen) | Begins tracking, resets hole and shot count | The bag should not nag during practice or in the trunk |
+| Next Hole (key on the strap edge) | Advances the hole, which triggers the left-behind check | The golfer decides when a hole is over, not the bag |
+| Alerts On / Off (key on the strap edge) | Silences the warnings on both devices | Users need to mute alerts at the range |
+
+All three are physical keys in the mount, not touch targets on the screen:
+e-ink touch is slow, golfers wear gloves, and the bag is used in rain. The
+phone's Round tab repeats them.
 
 **Indicators**
 
 | Indicator | What it shows | Design goal it serves |
 |---|---|---|
-| Club count, large | How many of 14 are in the bag | Readable at a glance in sun glare |
+| Club count, large | How many of today's clubs are in the bag | Readable at a glance in sun glare |
 | Club rack | Which specific club is out | Knowing one is missing is useless without knowing which |
-| Left-behind alert | Club name plus the hole it was left on | Tells the golfer where to walk back to |
-| Hole and shot count | Round context | Low priority, so it is small and at the top |
+| Message line, with the left-behind alert | Club name plus the hole it was left on | Tells the golfer where to walk back to |
+| Hole and round state | Round context | Low priority, so it is small and at the top |
+
+The shot count moved to the phone, which carries anything that takes more
+than a two-second glance.
 
 **Design choices**
 
@@ -195,7 +210,18 @@ indicators, and how they connect to the design goals.
 
 ### Levels 2 to 4: choose 1 to 3 options
 
-- [ ] **[todo]** Pick at least one
+- [x] **[done]** Two options built: Option 2 and Option 4
+- [x] **[done]** **Option 2, mock secondary device.** The phone
+      (`PhoneShell.svelte` with the Round, Setup and Summary tabs). Sync runs
+      both ways: choosing today's clubs on the phone redraws the bag's rack,
+      the bag's left-behind alert is relayed to the phone, and the three
+      controls work from either device. The phone exists because the bag can
+      only alert someone standing at it; the away-from-bag alert appears on
+      the phone alone.
+- [x] **[done]** **Option 4, simulate the object in use over time.** Play
+      round runs a scripted nine-hole round in 21 steps at 1.2 seconds each,
+      calling the same functions as the manual controls, and fires both
+      alerts.
 
 **Option 1. Complex set of selections.** Design a UI for inputs the basic
 interface cannot handle. Selections must be clearly visible with quick
@@ -247,13 +273,20 @@ publicly available on your portfolio page.
 
 ### On the implementation section
 
-> Svelte 5 with Vite. Three components: `App.svelte` holds all application
-> state and renders both regions; `ClubTracker.svelte` is the device panel
-> and receives state as props; `BagGraphic.svelte` is a static SVG showing
-> interface placement. State lives in the parent because the testing buttons
-> and the device panel both act on the same data. Reactivity uses Svelte 5
-> runes: `$state` for the club array and round status, `$derived` for
-> computed values such as which clubs are out and which were left behind.
+> Svelte 5 with Vite, no other libraries. `App.svelte` holds all application
+> state and renders the page. The bag is `BagMount.svelte` (the pocket and
+> its three keys), `BagDisplay.svelte` (the e-ink screen) and
+> `ClubRack.svelte`. The phone is `PhoneShell.svelte` with `PhoneRound`,
+> `PhoneSetup` and `PhoneSummary`. `TestPanel.svelte` and
+> `SimProgress.svelte` are the testing controls, `BagGraphic.svelte` is the
+> placement drawing, `PairingLine.svelte` is the line between the devices,
+> and `WorkbenchLabel` and `WorkbenchOverlay` are page furniture. State lives
+> in the parent because the test controls, the bag and the phone all act on
+> the same data, and children change it only through functions passed down
+> as props. Reactivity uses Svelte 5 runes: `$state` for the clubs, round,
+> bag, phone and simulation, `$derived` for computed values such as which
+> clubs are out and which were left behind. The chart on the Summary tab is
+> hand-written inline SVG.
 
 ### On the AI documentation section
 
@@ -263,11 +296,14 @@ you understand well enough to defend, since you have to present this live.
 
 ### Screenshots worth taking
 
-1. Clean state: 14 of 14, all clubs accounted for
-2. Club in hand: 13 of 14, neutral message, one hollow slot
-3. Left behind: red alert naming the club and the hole
-4. Info box open
-5. Whatever Level 2 feature you build
+1. Clean state, both devices, 14 of 14
+2. Club in hand: bag neutral, phone showing which club and which hole
+3. Left behind: red alert on both devices
+4. Phone Setup tab mid-edit, showing the 14-club limit being enforced
+5. Away-from-bag alert: phone only, bag calm
+6. Phone Summary tab with the round chart
+7. Fig. 1, the placement graphic, open
+8. Info overlay open
 
 ### Demo video outline
 
@@ -275,7 +311,8 @@ Open with the project name and your name. State the problem in one sentence:
 golfers leave clubs behind and have no way to know until several holes later.
 Show the two regions and say what each is for. Walk through pulling a club
 and advancing a hole so the alert fires live. Point at the placement graphic
-and explain the four surfaces. Close with what you would build next.
+and explain the surfaces the interface is spread across. Close with what you
+would build next.
 
 Record with a screen capture tool that also captures audio, such as
 QuickTime. Host on your webpage or YouTube, but it must be linked from your
@@ -306,9 +343,13 @@ prototype rather than before it. See the method note at the end of
 
 ### Build
 
-1. Work `SPECIFICATIONS.md` phases 0 through 8 with Claude Code
-2. Push to GitHub and deploy to Vercel
-3. Paste the real write-up URL into `App.svelte`, replacing `#writeup`
+1. ~~Work `SPECIFICATIONS.md` phases 0 through 8 with Claude Code~~ Done,
+   except the two items below
+2. ~~Push to GitHub~~ Done:
+   https://github.com/Jonathan-Cheruiyot/smart-golf-bag. **Still to do:
+   deploy to Vercel** by importing that repo at vercel.com
+3. **Still to do:** paste the real write-up URL into `App.svelte`, replacing
+   `#writeup`, once the write-up is live
 
 ### Design section, done by hand alongside the build
 

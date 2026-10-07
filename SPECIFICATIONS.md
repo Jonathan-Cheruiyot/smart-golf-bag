@@ -498,10 +498,13 @@ control has a visible focus state.
    write-up URL.
 6. Update `REQUIREMENTS.md` checkboxes to reflect what is now done.
 
-> **PAUSE AND ASK JONATHAN — Decision 5: URLs**
+> **Decision 5: URLs — PARTLY RESOLVED**
 >
-> Ask for the GitHub repo URL and the write-up URL. Do not guess or invent
-> them, and do not leave a fake URL in the code.
+> GitHub repo: https://github.com/Jonathan-Cheruiyot/smart-golf-bag, pushed.
+> The write-up URL does not exist yet, so step 5 is open: `href="#writeup"`
+> stays in `App.svelte` as an honest placeholder and Jonathan replaces it in
+> a final commit once the write-up is live. Step 4, the Vercel deploy, is
+> also his to do, since it needs his Vercel account.
 
 ---
 
@@ -544,7 +547,8 @@ Collected from the phase markers above, in the order they come up:
    Phase 4
 4. ~~**Simulation pacing**, and whether to add a speed control (Phase 5)~~
    Resolved, see Phase 5
-5. **GitHub and write-up URLs** (Phase 8)
+5. **GitHub and write-up URLs** (Phase 8). GitHub resolved; the write-up
+   URL is still to come
 
 Two more that are not blocking but improve the result if he answers early:
 

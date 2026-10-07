@@ -51,7 +51,9 @@ golf-bag/
     ├── App.svelte        <- replaces the Vite one
     ├── app.css           <- replaces the Vite one
     └── lib/
-        ├── ClubTracker.svelte   <- new
+        ├── BagMount.svelte      <- new, with the other bag, phone
+        ├── BagDisplay.svelte       and test components beside it
+        ├── ...                     (GUIDE.md section 3 lists them all)
         └── BagGraphic.svelte    <- new
 ```
 
